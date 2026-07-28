@@ -104,7 +104,7 @@ In another terminal:
 
 ```bash
 cd ui
-npm run dev
+npm run host
 ```
 
 If API certs exist, Vite will also serve HTTPS using the same cert/key pair.
