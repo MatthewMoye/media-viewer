@@ -1,0 +1,45 @@
+@import "tailwindcss";
+
+:root {
+  --bg-primary: #020617;
+  --surface: #0f172a;
+  --surface-strong: #111827;
+  --surface-90: rgba(15, 23, 42, 0.9);
+  --surface-80: rgba(15, 23, 42, 0.8);
+  --surface-70: rgba(15, 23, 42, 0.7);
+  --text-primary: #f8fafc;
+  --text-muted: #94a3b8;
+  --accent: #22d3ee;
+  --accent-strong: #06b6d4;
+  --border: #334155;
+  --border-soft: rgba(148, 163, 184, 0.08);
+  --accent-soft: rgba(34, 211, 238, 0.12);
+  --shadow-accent: rgba(34, 211, 238, 0.22);
+  --shadow-surface: rgba(15, 23, 42, 0.4);
+}
+
+body {
+  background: var(--bg-primary);
+  color: var(--text-primary);
+}
+
+.bg-primary { background-color: var(--bg-primary); }
+.bg-surface { background-color: var(--surface); }
+.bg-surface-strong { background-color: var(--surface-strong); }
+.bg-surface-90 { background-color: var(--surface-90); }
+.bg-surface-80 { background-color: var(--surface-80); }
+.bg-surface-70 { background-color: var(--surface-70); }
+.border-surface { border-color: var(--border); }
+.border-surface-soft { border-color: var(--border-soft); }
+.text-primary { color: var(--text-primary); }
+.text-muted { color: var(--text-muted); }
+.text-accent { color: var(--accent); }
+.bg-accent { background-color: var(--accent); }
+.bg-accent-strong { background-color: var(--accent-strong); }
+.bg-accent-soft { background-color: var(--accent-soft); }
+.shadow-accent { box-shadow: 0 20px 45px var(--shadow-accent); }
+.shadow-surface { box-shadow: 0 20px 45px var(--shadow-surface); }
+.focus-ring-accent:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--accent); }
+.hover-bg-accent:hover { background-color: var(--accent); }
+.hover-bg-surface-strong:hover { background-color: var(--surface-strong); }
+.hover-border-surface:hover { border-color: var(--border); }
