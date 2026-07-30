@@ -99,7 +99,12 @@ cd ui
 npm run host
 ```
 
-## View it On Your Network
+## Where to Use This
+
+- Host computer: use this README for setup and commands, and use the Admin page there to manage directories and run rescans at https://localhost:3000/.
+- Any device on your home network: use the Main Viewer in a browser to stream media.
+
+## View the App On Other Devices
 
 1. On another device, open a browser.
 2. Go to https://<your-local-ip>:5173.
