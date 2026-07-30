@@ -82,10 +82,6 @@ AUTH_PASS=your-secure-password
 AUTH_SECRET=your-secret-key-change-this
 ```
 
-Important:
-- Use `HOST=0.0.0.0` if you want other LAN devices to access the API.
-- Keep `AUTH_SECRET` long and random.
-
 ## Running the App
 
 ### Start API Server

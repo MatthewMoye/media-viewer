@@ -166,9 +166,11 @@ export const MediaViewerProvider = ({ children }: PropsWithChildren) => {
   }, []);
 
   const filteredFiles = useMemo(() => {
+    const normalizedSearchTerm = searchTerm.trim().toLowerCase();
     return files.filter((item) => {
       const matchesSearch =
-        searchTerm === "" || item.title.includes(searchTerm);
+        normalizedSearchTerm === "" ||
+        item.title.toLowerCase().includes(normalizedSearchTerm);
 
       const matchesType = viewMode === "all" || item.type === viewMode;
 

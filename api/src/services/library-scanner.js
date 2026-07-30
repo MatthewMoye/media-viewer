@@ -1,6 +1,5 @@
 const fs = require("node:fs");
 const path = require("node:path");
-const { config } = require("../config");
 const {
   beginTransaction,
   commitTransaction,
@@ -15,6 +14,7 @@ const {
 } = require("../database/media-database");
 const { getMediaType } = require("../utils/media-types");
 const { scanCbzDirectory } = require("./cbz-scanner");
+const { listMediaRoots, listComicRoots } = require("./root-manager");
 
 function scanDirectory(rootName, directory, parentFolder = null) {
   if (!fs.existsSync(directory)) {
@@ -76,7 +76,7 @@ function rescanLibrary() {
     clearFiles();
 
     const mediaStart = Date.now();
-    for (const root of config.mediaRoots) {
+    for (const root of listMediaRoots()) {
       console.log(`Scanning root "${root.name}": ${root.path}`);
       scanDirectory(root.name, root.path);
     }
@@ -94,7 +94,7 @@ function rescanLibrary() {
     const scannedPaths = new Set();
     let skipped = 0;
 
-    for (const root of config.cbzRoots) {
+    for (const root of listComicRoots()) {
       console.log(`Scanning CBZ root "${root.name}": ${root.path}`);
       const comics = scanCbzDirectory(root.name, root.path, null, existingComicsMap);
       
