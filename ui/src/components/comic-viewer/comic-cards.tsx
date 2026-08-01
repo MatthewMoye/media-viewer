@@ -1,17 +1,14 @@
-import type { ComicBook } from "@/types";
+import { useComicViewer } from "./context/use-comic-viewer";
 
-type ComicCardsProps = {
-  comics: ComicBook[];
-  onCardClick: (comic: ComicBook) => void;
-};
+const ComicCards = () => {
+  const { visibleComics, openComic } = useComicViewer();
 
-const ComicCards = ({ comics, onCardClick }: ComicCardsProps) => {
   return (
     <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-      {comics.map((comic) => (
+      {visibleComics.map((comic) => (
         <article
           key={comic.id}
-          onClick={() => onCardClick(comic)}
+          onClick={() => openComic(comic)}
           className="cursor-pointer overflow-hidden rounded-xl border-2 border-surface bg-surface-90 transition hover:bg-surface-strong"
         >
           <div className="relative h-80 overflow-hidden border-b-2 border-surface bg-black">

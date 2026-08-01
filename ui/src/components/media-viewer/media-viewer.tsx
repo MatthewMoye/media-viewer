@@ -16,11 +16,8 @@ export const MediaViewer = () => {
 
 const MediaViewerContent = () => {
   const {
-    visibleFiles,
     filteredFileCount,
     loading,
-    selectedItemId,
-    openModal,
     currentPage,
     totalPages,
     startIndex,
@@ -49,11 +46,7 @@ const MediaViewerContent = () => {
           />
         </div>
       )}
-      <MediaFiles
-        files={visibleFiles}
-        selectedItemId={selectedItemId}
-        handleCardClick={openModal}
-      />
+      <MediaFiles />
       {showPagination && (
         <div className="mt-6">
           <PaginationControls

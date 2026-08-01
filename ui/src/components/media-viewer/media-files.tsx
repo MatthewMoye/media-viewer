@@ -1,22 +1,14 @@
-import type { MediaItem } from "@/types";
+import { useMediaViewer } from "./context/use-media-viewer";
 
-type MediaFilesProps = {
-  files: MediaItem[];
-  selectedItemId: string | null;
-  handleCardClick: (item: MediaItem) => void;
-};
+const MediaFiles = () => {
+  const { visibleFiles, selectedItemId, openModal } = useMediaViewer();
 
-const MediaFiles = ({
-  files,
-  selectedItemId,
-  handleCardClick,
-}: MediaFilesProps) => {
   return (
     <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-      {files.map((item) => (
+      {visibleFiles.map((item) => (
         <div
           key={item.id}
-          onClick={() => handleCardClick(item)}
+          onClick={() => openModal(item)}
           className={`group cursor-pointer overflow-hidden rounded-xl border-2 transition ${
             selectedItemId === item.id
               ? "border-accent bg-surface-strong"
