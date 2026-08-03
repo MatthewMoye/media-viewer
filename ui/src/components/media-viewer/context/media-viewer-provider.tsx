@@ -27,8 +27,7 @@ function toMediaItem(file: ApiMediaFile): MediaItem {
     id: String(file.id),
     title: file.filename.replaceAll("-", " ").replaceAll("_", " "),
     type: file.type,
-    thumbnail:
-      file.type === "video" ? `/thumbnail/${file.id}` : `/file/${file.id}`,
+    thumbnail: `/thumbnail/${file.id}`,
     root: file.root,
     parent_folder: parentFolder,
     filename: file.filename,

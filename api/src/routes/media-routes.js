@@ -14,6 +14,35 @@ const { requireExistingPath, sendNotFound } = require("./helpers/file-response")
 
 const mediaRouter = express.Router();
 
+function createEtag(stats) {
+  return `W/"${stats.size}-${Math.floor(stats.mtimeMs)}"`;
+}
+
+function setValidationHeaders(response, stats) {
+  response.setHeader("ETag", createEtag(stats));
+  response.setHeader("Last-Modified", new Date(stats.mtimeMs).toUTCString());
+}
+
+function isFresh(request, stats) {
+  const requestEtag = request.headers["if-none-match"];
+  const currentEtag = createEtag(stats);
+
+  if (typeof requestEtag === "string" && requestEtag === currentEtag) {
+    return true;
+  }
+
+  const modifiedSince = request.headers["if-modified-since"];
+  if (typeof modifiedSince === "string") {
+    const modifiedSinceTime = Date.parse(modifiedSince);
+
+    if (!Number.isNaN(modifiedSinceTime) && modifiedSinceTime >= stats.mtimeMs) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
 function streamEntireFile(response, filePath, fileSize, mimeType) {
   response.writeHead(200, {
     "Content-Length": fileSize,
@@ -90,6 +119,14 @@ mediaRouter.get("/file/:id", (request, response) => {
   const mimeType = getMimeType(file.extension);
   const rangeHeader = request.headers.range;
 
+  response.setHeader("Cache-Control", "public, max-age=0, must-revalidate");
+  setValidationHeaders(response, stats);
+
+  if (!rangeHeader && isFresh(request, stats)) {
+    response.status(304).end();
+    return;
+  }
+
   if (!rangeHeader) {
     streamEntireFile(response, filePath, fileSize, mimeType);
     return;
@@ -128,8 +165,8 @@ mediaRouter.get("/thumbnail/:id", async (request, response, next) => {
       return;
     }
 
-    if (file.type !== "video") {
-      response.status(400).send("Thumbnails are only available for videos");
+    if (file.type !== "video" && file.type !== "image") {
+      response.status(400).send("Thumbnails are only available for images and videos");
       return;
     }
 
@@ -142,15 +179,23 @@ mediaRouter.get("/thumbnail/:id", async (request, response, next) => {
     let thumbnailPath = getThumbnailPath(file.id);
 
     if (!fs.existsSync(thumbnailPath)) {
-      thumbnailPath = await ensureThumbnail(file.id, filePath);
+      thumbnailPath = await ensureThumbnail(file.id, filePath, file.type);
     }
 
     if (!requireExistingPath(response, thumbnailPath, "Thumbnail not found")) {
       return;
     }
 
-    response.setHeader("Content-Type", "image/jpeg");
-    response.setHeader("Cache-Control", "public, max-age=86400");
+    const thumbnailStats = fs.statSync(thumbnailPath);
+
+    response.setHeader("Content-Type", "image/webp");
+    response.setHeader("Cache-Control", "public, max-age=31536000, immutable");
+    setValidationHeaders(response, thumbnailStats);
+
+    if (isFresh(request, thumbnailStats)) {
+      response.status(304).end();
+      return;
+    }
 
     fs.createReadStream(thumbnailPath).pipe(response);
   } catch (error) {

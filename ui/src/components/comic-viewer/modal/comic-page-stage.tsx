@@ -41,7 +41,7 @@ const ComicPageStage = ({
           type="button"
           aria-label="Previous page"
           onClick={onPrev}
-          className="absolute left-0 top-0 h-full w-1/3 cursor-w-resize opacity-0"
+          className="absolute left-0 top-0 h-full w-1/3 cursor-pointer opacity-0"
         />
       )}
       {hasNext && (
@@ -49,7 +49,7 @@ const ComicPageStage = ({
           type="button"
           aria-label="Next page"
           onClick={onNext}
-          className="absolute right-0 top-0 h-full w-1/3 cursor-e-resize opacity-0"
+          className="absolute right-0 top-0 h-full w-1/3 cursor-pointer opacity-0"
         />
       )}
     </div>

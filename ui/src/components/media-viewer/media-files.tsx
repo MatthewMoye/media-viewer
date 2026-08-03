@@ -16,25 +16,14 @@ const MediaFiles = () => {
           }`}
         >
           <div className="relative h-80 overflow-hidden border-b-2 border-surface bg-black">
-            {item.type === "video" ? (
-              <img
-                src={`/thumbnail/${item.id}`}
-                alt={item.title}
-                loading="lazy"
-                decoding="async"
-                draggable={false}
-                className="block h-full w-full object-contain"
-              />
-            ) : (
-              <img
-                src={`/file/${item.id}`}
-                alt={item.title}
-                loading="lazy"
-                decoding="async"
-                draggable={false}
-                className="block h-full w-full object-contain"
-              />
-            )}
+            <img
+              src={`/thumbnail/${item.id}`}
+              alt={item.title}
+              loading="lazy"
+              decoding="async"
+              draggable={false}
+              className="block h-full w-full object-contain"
+            />
 
             <span className="absolute left-3 top-3 flex h-8 w-8 items-center justify-center rounded-full bg-surface-90 text-primary shadow-sm">
               {item.type === "video" ? "▶" : "🖼"}

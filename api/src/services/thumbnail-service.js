@@ -7,6 +7,8 @@ const sharp = require("sharp");
 const { config } = require("../config");
 const { markThumbnailGenerated } = require("../database/media-database");
 
+const THUMBNAIL_WIDTH = 480;
+
 ffmpeg.setFfmpegPath(ffmpegInstaller.path);
 ffmpeg.setFfprobePath(ffprobeInstaller.path);
 
@@ -15,46 +17,55 @@ fs.mkdirSync(config.thumbnailsPath, {
 });
 
 function getThumbnailPath(fileId) {
-  return path.join(config.thumbnailsPath, `${fileId}.jpg`);
+  return path.join(config.thumbnailsPath, `${fileId}.webp`);
 }
 
 function getTemporaryThumbnailPath(fileId) {
-  return path.join(config.thumbnailsPath, `${fileId}-temporary.jpg`);
+  return path.join(config.thumbnailsPath, `${fileId}-temporary.webp`);
 }
 
-function resizeThumbnail(fileId) {
-  const thumbnailPath = getThumbnailPath(fileId);
-  const temporaryPath = getTemporaryThumbnailPath(fileId);
+function getTemporaryFramePath(fileId) {
+  return path.join(config.thumbnailsPath, `${fileId}-frame.jpg`);
+}
 
-  return sharp(thumbnailPath)
-    .resize(320, undefined, {
+async function buildWebpThumbnail(sourcePath, targetPath) {
+  await sharp(sourcePath)
+    .rotate()
+    .resize(THUMBNAIL_WIDTH, undefined, {
       withoutEnlargement: true,
       fit: "inside",
     })
-    .jpeg({
-      quality: 80,
+    .webp({
+      quality: 78,
+      effort: 4,
     })
-    .toFile(temporaryPath)
-    .then(() => {
-      fs.rmSync(thumbnailPath, {
-        force: true,
-      });
-
-      fs.renameSync(temporaryPath, thumbnailPath);
-
-      return thumbnailPath;
-    })
-    .catch((error) => {
-      fs.rmSync(temporaryPath, {
-        force: true,
-      });
-
-      throw error;
-    });
+    .toFile(targetPath);
 }
 
-function generateThumbnail(fileId, filePath) {
+async function generateImageThumbnail(fileId, filePath) {
   const thumbnailPath = getThumbnailPath(fileId);
+  const temporaryPath = getTemporaryThumbnailPath(fileId);
+
+  if (fs.existsSync(thumbnailPath)) {
+    return thumbnailPath;
+  }
+
+  try {
+    await buildWebpThumbnail(filePath, temporaryPath);
+    fs.renameSync(temporaryPath, thumbnailPath);
+    return thumbnailPath;
+  } catch (error) {
+    fs.rmSync(temporaryPath, {
+      force: true,
+    });
+    throw error;
+  }
+}
+
+function generateVideoThumbnail(fileId, filePath) {
+  const thumbnailPath = getThumbnailPath(fileId);
+  const temporaryPath = getTemporaryThumbnailPath(fileId);
+  const framePath = getTemporaryFramePath(fileId);
 
   if (fs.existsSync(thumbnailPath)) {
     return Promise.resolve(thumbnailPath);
@@ -63,6 +74,8 @@ function generateThumbnail(fileId, filePath) {
   return new Promise((resolve, reject) => {
     ffmpeg(filePath)
       .on("error", (error) => {
+        fs.rmSync(framePath, { force: true });
+        fs.rmSync(temporaryPath, { force: true });
         console.error(
           `Failed to generate thumbnail for file ${fileId}:`,
           error.message,
@@ -72,9 +85,13 @@ function generateThumbnail(fileId, filePath) {
       })
       .on("end", async () => {
         try {
-          const resizedThumbnail = await resizeThumbnail(fileId);
-          resolve(resizedThumbnail);
+          await buildWebpThumbnail(framePath, temporaryPath);
+          fs.renameSync(temporaryPath, thumbnailPath);
+          fs.rmSync(framePath, { force: true });
+          resolve(thumbnailPath);
         } catch (error) {
+          fs.rmSync(framePath, { force: true });
+          fs.rmSync(temporaryPath, { force: true });
           console.error(
             `Failed to resize thumbnail for file ${fileId}:`,
             error.message,
@@ -85,14 +102,17 @@ function generateThumbnail(fileId, filePath) {
       })
       .screenshots({
         count: 1,
-        filename: `${fileId}.jpg`,
+        filename: path.basename(framePath),
         folder: config.thumbnailsPath,
       });
   });
 }
 
-async function ensureThumbnail(fileId, filePath) {
-  const thumbnailPath = await generateThumbnail(fileId, filePath);
+async function ensureThumbnail(fileId, filePath, mediaType) {
+  const thumbnailPath =
+    mediaType === "video"
+      ? await generateVideoThumbnail(fileId, filePath)
+      : await generateImageThumbnail(fileId, filePath);
 
   markThumbnailGenerated(fileId);
 
