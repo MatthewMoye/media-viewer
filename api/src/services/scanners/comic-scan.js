@@ -14,6 +14,7 @@ function rescanComics(comicRoots) {
   const allComics = [];
   const scannedPaths = new Set();
   let skipped = 0;
+  let changedOrNew = 0;
 
   for (const root of comicRoots) {
     console.log(`Scanning CBZ root "${root.name}": ${root.path}`);
@@ -35,13 +36,18 @@ function rescanComics(comicRoots) {
   }
 
   for (const comic of allComics) {
+    if (!comic.fullyScanned) {
+      continue;
+    }
+
     insertComic(comic);
+    changedOrNew += 1;
   }
 
   return {
     total: allComics.length,
     skipped,
-    rescanned: allComics.length - skipped,
+    rescanned: changedOrNew,
   };
 }
 

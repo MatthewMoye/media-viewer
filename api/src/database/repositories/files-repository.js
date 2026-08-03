@@ -10,7 +10,7 @@ const { buildMediaFilters } = require("../query/media-filters");
 
 const statements = {
   insertFile: database.prepare(`
-    INSERT OR REPLACE INTO files (
+    INSERT INTO files (
       root,
       parent_folder,
       full_path,
@@ -21,6 +21,22 @@ const statements = {
       modified
     )
     VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    ON CONFLICT(full_path) DO UPDATE SET
+      root = excluded.root,
+      parent_folder = excluded.parent_folder,
+      filename = excluded.filename,
+      extension = excluded.extension,
+      type = excluded.type,
+      size = excluded.size,
+      modified = excluded.modified,
+      thumbnail_generated = CASE
+        WHEN excluded.modified != files.modified
+          OR excluded.size != files.size
+          OR excluded.extension != files.extension
+          OR excluded.type != files.type
+        THEN 0
+        ELSE files.thumbnail_generated
+      END
   `),
 
   clearFiles: database.prepare(`
@@ -83,6 +99,36 @@ const statements = {
     UPDATE files
     SET thumbnail_generated = 1
     WHERE id = ?
+  `),
+
+  getExistingFiles: database.prepare(`
+    SELECT
+      root,
+      parent_folder,
+      full_path,
+      filename,
+      extension,
+      type,
+      size,
+      modified,
+      thumbnail_generated
+    FROM files
+  `),
+
+  deleteFileByPath: database.prepare(`
+    DELETE FROM files
+    WHERE full_path = ?
+  `),
+
+  listThumbnailCandidates: database.prepare(`
+    SELECT
+      id,
+      full_path,
+      type
+    FROM files
+    WHERE type IN ('image', 'video')
+      AND thumbnail_generated = 0
+    ORDER BY id ASC
   `),
 
   listMediaFolders: database.prepare(`
@@ -177,6 +223,18 @@ function markThumbnailGenerated(id) {
   statements.markThumbnailGenerated.run(id);
 }
 
+function getExistingFiles() {
+  return statements.getExistingFiles.all();
+}
+
+function deleteFileByPath(fullPath) {
+  statements.deleteFileByPath.run(fullPath);
+}
+
+function listThumbnailCandidates() {
+  return statements.listThumbnailCandidates.all();
+}
+
 function listMediaFolders() {
   return statements.listMediaFolders.all();
 }
@@ -191,5 +249,8 @@ module.exports = {
   findFileForStreaming,
   findFileForThumbnail,
   markThumbnailGenerated,
+  getExistingFiles,
+  deleteFileByPath,
+  listThumbnailCandidates,
   listMediaFolders,
 };

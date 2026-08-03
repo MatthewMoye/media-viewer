@@ -69,6 +69,7 @@ HOST=localhost
 
 DATABASE_PATH=library.db
 CACHE_PATH=cache
+THUMBNAIL_WORKER_COUNT=2
 
 MEDIA_ROOTS=[{"name":"My Media","path":"C:\\Path\\To\\Media"}]
 CBZ_ROOTS=[{"name":"My Comics","path":"C:\\Path\\To\\Comics"}]
@@ -82,6 +83,7 @@ Notes:
 
 - Use HOST=0.0.0.0 if you want other devices to connect directly to the API host.
 - Directory changes made in the admin page are saved in cache/roots.json.
+- THUMBNAIL_WORKER_COUNT controls concurrent backend thumbnail workers for both media and CBZ thumbnails (higher is faster warmup, but uses more CPU/disk). A value of 2-4 is usually a good range.
 
 ## Start The App
 

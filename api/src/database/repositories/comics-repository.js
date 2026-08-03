@@ -10,11 +10,36 @@ const { buildComicFilters } = require("../query/comic-filters");
 
 const statements = {
   insertComic: database.prepare(`
-    INSERT OR REPLACE INTO comics (
+    INSERT INTO comics (
       root, parent_folder, full_path, filename, size, modified, cover_entry,
       title, year, month, day, writer, genre, tags, web,
       series, format, page_count
     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ON CONFLICT(full_path) DO UPDATE SET
+      root = excluded.root,
+      parent_folder = excluded.parent_folder,
+      filename = excluded.filename,
+      size = excluded.size,
+      modified = excluded.modified,
+      cover_entry = excluded.cover_entry,
+      title = excluded.title,
+      year = excluded.year,
+      month = excluded.month,
+      day = excluded.day,
+      writer = excluded.writer,
+      genre = excluded.genre,
+      tags = excluded.tags,
+      web = excluded.web,
+      series = excluded.series,
+      format = excluded.format,
+      page_count = excluded.page_count,
+      thumbnail_generated = CASE
+        WHEN excluded.modified != comics.modified
+          OR excluded.size != comics.size
+          OR IFNULL(excluded.cover_entry, '') != IFNULL(comics.cover_entry, '')
+        THEN 0
+        ELSE comics.thumbnail_generated
+      END
   `),
 
   clearComics: database.prepare(`
@@ -43,6 +68,15 @@ const statements = {
     UPDATE comics
     SET thumbnail_generated = 1
     WHERE id = ?
+  `),
+
+  listComicThumbnailCandidates: database.prepare(`
+    SELECT id, full_path, cover_entry
+    FROM comics
+    WHERE thumbnail_generated = 0
+      AND cover_entry IS NOT NULL
+      AND TRIM(cover_entry) <> ''
+    ORDER BY id ASC
   `),
 
   listComicAuthors: database.prepare(`
@@ -139,6 +173,10 @@ function markComicThumbnailGenerated(id) {
   statements.markComicThumbnailGenerated.run(id);
 }
 
+function listComicThumbnailCandidates() {
+  return statements.listComicThumbnailCandidates.all();
+}
+
 function getExistingComics() {
   return statements.getExistingComics.all();
 }
@@ -155,6 +193,7 @@ module.exports = {
   listComicTagSources,
   findComicById,
   markComicThumbnailGenerated,
+  listComicThumbnailCandidates,
   getExistingComics,
   deleteComicByPath,
 };

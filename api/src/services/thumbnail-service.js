@@ -6,8 +6,14 @@ const ffprobeInstaller = require("@ffprobe-installer/ffprobe");
 const sharp = require("sharp");
 const { config } = require("../config");
 const { markThumbnailGenerated } = require("../database/media-database");
+const {
+  enqueueJob,
+  getThumbnailJobQueueStatus,
+} = require("./thumbnail-job-queue");
 
 const THUMBNAIL_WIDTH = 480;
+const MEDIA_REQUEST_PRIORITY = 400;
+const MEDIA_WARMUP_PRIORITY = 300;
 
 ffmpeg.setFfmpegPath(ffmpegInstaller.path);
 ffmpeg.setFfprobePath(ffprobeInstaller.path);
@@ -26,6 +32,10 @@ function getTemporaryThumbnailPath(fileId) {
 
 function getTemporaryFramePath(fileId) {
   return path.join(config.thumbnailsPath, `${fileId}-frame.jpg`);
+}
+
+function createThumbnailFailureError(filePath) {
+  return new Error(`Failed to create thumbnail for file: ${filePath}`);
 }
 
 async function buildWebpThumbnail(sourcePath, targetPath) {
@@ -54,11 +64,11 @@ async function generateImageThumbnail(fileId, filePath) {
     await buildWebpThumbnail(filePath, temporaryPath);
     fs.renameSync(temporaryPath, thumbnailPath);
     return thumbnailPath;
-  } catch (error) {
+  } catch {
     fs.rmSync(temporaryPath, {
       force: true,
     });
-    throw error;
+    throw createThumbnailFailureError(filePath);
   }
 }
 
@@ -73,15 +83,10 @@ function generateVideoThumbnail(fileId, filePath) {
 
   return new Promise((resolve, reject) => {
     ffmpeg(filePath)
-      .on("error", (error) => {
+      .on("error", () => {
         fs.rmSync(framePath, { force: true });
         fs.rmSync(temporaryPath, { force: true });
-        console.error(
-          `Failed to generate thumbnail for file ${fileId}:`,
-          error.message,
-        );
-
-        reject(error);
+        reject(createThumbnailFailureError(filePath));
       })
       .on("end", async () => {
         try {
@@ -89,15 +94,10 @@ function generateVideoThumbnail(fileId, filePath) {
           fs.renameSync(temporaryPath, thumbnailPath);
           fs.rmSync(framePath, { force: true });
           resolve(thumbnailPath);
-        } catch (error) {
+        } catch {
           fs.rmSync(framePath, { force: true });
           fs.rmSync(temporaryPath, { force: true });
-          console.error(
-            `Failed to resize thumbnail for file ${fileId}:`,
-            error.message,
-          );
-
-          reject(error);
+          reject(createThumbnailFailureError(filePath));
         }
       })
       .screenshots({
@@ -119,7 +119,71 @@ async function ensureThumbnail(fileId, filePath, mediaType) {
   return thumbnailPath;
 }
 
+function queueThumbnailJob(fileId, filePath, mediaType, priority) {
+  const thumbnailPath = getThumbnailPath(fileId);
+
+  if (fs.existsSync(thumbnailPath)) {
+    return Promise.resolve(thumbnailPath);
+  }
+
+  return enqueueJob({
+    jobKey: `media:${fileId}`,
+    group: "media",
+    priority,
+    run: () => ensureThumbnail(fileId, filePath, mediaType),
+  });
+}
+
+function queueThumbnailRequest(fileId, filePath, mediaType) {
+  return queueThumbnailJob(fileId, filePath, mediaType, MEDIA_REQUEST_PRIORITY);
+}
+
+function queueThumbnailWarmup(fileId, filePath, mediaType) {
+  return queueThumbnailJob(fileId, filePath, mediaType, MEDIA_WARMUP_PRIORITY);
+}
+
+function queueThumbnailWarmupBatch(items) {
+  let queued = 0;
+
+  for (const item of items) {
+    if (item.type !== "image" && item.type !== "video") {
+      continue;
+    }
+
+    const thumbnailPath = getThumbnailPath(item.id);
+    if (fs.existsSync(thumbnailPath)) {
+      continue;
+    }
+
+    queueThumbnailWarmup(item.id, item.full_path, item.type).catch((error) => {
+      console.error(`Thumbnail warmup failed for file ${item.id}:`, error.message);
+    });
+
+    queued += 1;
+  }
+
+  return queued;
+}
+
+function getThumbnailQueueStatus() {
+  const queueStatus = getThumbnailJobQueueStatus();
+  const mediaGroupStatus = queueStatus.groups.media || { pending: 0, running: 0 };
+
+  return {
+    activeWorkers: queueStatus.activeWorkers,
+    mediaPending: mediaGroupStatus.pending,
+    mediaRunning: mediaGroupStatus.running,
+    totalPending: queueStatus.pendingJobs,
+    totalTrackedJobs: queueStatus.trackedJobs,
+    maxConcurrentWorkers: queueStatus.maxConcurrentWorkers,
+  };
+}
+
 module.exports = {
   getThumbnailPath,
+  queueThumbnailRequest,
+  queueThumbnailWarmup,
+  queueThumbnailWarmupBatch,
+  getThumbnailQueueStatus,
   ensureThumbnail,
 };

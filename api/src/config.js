@@ -19,6 +19,16 @@ function parsePort(value) {
   return port;
 }
 
+function parsePositiveInteger(value, fallback, settingName) {
+  const parsed = Number.parseInt(value ?? String(fallback), 10);
+
+  if (!Number.isInteger(parsed) || parsed <= 0) {
+    throw new Error(`Invalid ${settingName} value: ${value}`);
+  }
+
+  return parsed;
+}
+
 function parseMediaRoots(value) {
   if (!value) {
     throw new Error("MEDIA_ROOTS is required in the .env file.");
@@ -117,23 +127,21 @@ const config = {
   projectRoot: PROJECT_ROOT,
   port: parsePort(process.env.PORT),
   host: process.env.HOST?.trim() || "localhost",
-
+  thumbnailWorkerCount: parsePositiveInteger(
+    process.env.THUMBNAIL_WORKER_COUNT,
+    2,
+    "THUMBNAIL_WORKER_COUNT",
+  ),
   databasePath: resolveProjectPath(process.env.DATABASE_PATH, "library.db"),
-
   get thumbnailsPath() {
     return path.join(this.cachePath, "thumbnails");
   },
-
   get comicCachePath() {
     return path.join(this.cachePath, "comics");
   },
-
   cachePath: resolveProjectPath(process.env.CACHE_PATH, "cache"),
-
   mediaRoots: parseMediaRoots(process.env.MEDIA_ROOTS),
-
   cbzRoots: parseCbzRoots(process.env.CBZ_ROOTS),
-
   auth: parseAuthCredentials(),
 };
 

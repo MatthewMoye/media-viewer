@@ -33,6 +33,9 @@ module.exports = {
   findFileForStreaming: filesRepository.findFileForStreaming,
   findFileForThumbnail: filesRepository.findFileForThumbnail,
   markThumbnailGenerated: filesRepository.markThumbnailGenerated,
+  getExistingFiles: filesRepository.getExistingFiles,
+  deleteFileByPath: filesRepository.deleteFileByPath,
+  listThumbnailCandidates: filesRepository.listThumbnailCandidates,
 
   insertComic: comicsRepository.insertComic,
   clearComics: comicsRepository.clearComics,
@@ -41,6 +44,7 @@ module.exports = {
   listComicTagSources: comicsRepository.listComicTagSources,
   findComicById: comicsRepository.findComicById,
   markComicThumbnailGenerated: comicsRepository.markComicThumbnailGenerated,
+  listComicThumbnailCandidates: comicsRepository.listComicThumbnailCandidates,
   getExistingComics: comicsRepository.getExistingComics,
   deleteComicByPath: comicsRepository.deleteComicByPath,
 };

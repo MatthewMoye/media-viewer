@@ -4,6 +4,13 @@ const AdmZip = require("adm-zip");
 const sharp = require("sharp");
 const { config } = require("../config");
 const { markComicThumbnailGenerated } = require("../database/media-database");
+const {
+  enqueueJob,
+  getThumbnailJobQueueStatus,
+} = require("./thumbnail-job-queue");
+
+const COMIC_REQUEST_PRIORITY = 350;
+const COMIC_WARMUP_PRIORITY = 100;
 
 fs.mkdirSync(config.thumbnailsPath, { recursive: true });
 
@@ -37,4 +44,72 @@ async function ensureCbzThumbnail(comicId, cbzPath, coverEntry) {
   return thumbnailPath;
 }
 
-module.exports = { getCbzThumbnailPath, ensureCbzThumbnail };
+function queueCbzThumbnailJob(comicId, cbzPath, coverEntry, priority) {
+  const thumbnailPath = getCbzThumbnailPath(comicId);
+
+  if (fs.existsSync(thumbnailPath)) {
+    return Promise.resolve(thumbnailPath);
+  }
+
+  return enqueueJob({
+    jobKey: `comic:${comicId}`,
+    group: "comics",
+    priority,
+    run: () => ensureCbzThumbnail(comicId, cbzPath, coverEntry),
+  });
+}
+
+function queueCbzThumbnailRequest(comicId, cbzPath, coverEntry) {
+  return queueCbzThumbnailJob(comicId, cbzPath, coverEntry, COMIC_REQUEST_PRIORITY);
+}
+
+function queueCbzThumbnailWarmup(comicId, cbzPath, coverEntry) {
+  return queueCbzThumbnailJob(comicId, cbzPath, coverEntry, COMIC_WARMUP_PRIORITY);
+}
+
+function queueCbzThumbnailWarmupBatch(items) {
+  let queued = 0;
+
+  for (const item of items) {
+    if (!item.cover_entry) {
+      continue;
+    }
+
+    const thumbnailPath = getCbzThumbnailPath(item.id);
+    if (fs.existsSync(thumbnailPath)) {
+      continue;
+    }
+
+    queueCbzThumbnailWarmup(item.id, item.full_path, item.cover_entry).catch(
+      (error) => {
+        console.error(`Comic thumbnail warmup failed for comic ${item.id}:`, error.message);
+      },
+    );
+
+    queued += 1;
+  }
+
+  return queued;
+}
+
+function getCbzThumbnailQueueStatus() {
+  const queueStatus = getThumbnailJobQueueStatus();
+  const comicGroupStatus = queueStatus.groups.comics || {
+    pending: 0,
+    running: 0,
+  };
+
+  return {
+    comicsPending: comicGroupStatus.pending,
+    comicsRunning: comicGroupStatus.running,
+  };
+}
+
+module.exports = {
+  getCbzThumbnailPath,
+  ensureCbzThumbnail,
+  queueCbzThumbnailRequest,
+  queueCbzThumbnailWarmup,
+  queueCbzThumbnailWarmupBatch,
+  getCbzThumbnailQueueStatus,
+};

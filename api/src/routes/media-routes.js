@@ -4,10 +4,13 @@ const path = require("node:path");
 const {
   findFileForStreaming,
   findFileForThumbnail,
+  listThumbnailCandidates,
 } = require("../database/media-database");
 const {
   getThumbnailPath,
-  ensureThumbnail,
+  queueThumbnailRequest,
+  queueThumbnailWarmupBatch,
+  getThumbnailQueueStatus,
 } = require("../services/thumbnail-service");
 const { getMimeType } = require("../utils/media-types");
 const { requireExistingPath, sendNotFound } = require("./helpers/file-response");
@@ -179,7 +182,7 @@ mediaRouter.get("/thumbnail/:id", async (request, response, next) => {
     let thumbnailPath = getThumbnailPath(file.id);
 
     if (!fs.existsSync(thumbnailPath)) {
-      thumbnailPath = await ensureThumbnail(file.id, filePath, file.type);
+      thumbnailPath = await queueThumbnailRequest(file.id, filePath, file.type);
     }
 
     if (!requireExistingPath(response, thumbnailPath, "Thumbnail not found")) {
@@ -201,6 +204,21 @@ mediaRouter.get("/thumbnail/:id", async (request, response, next) => {
   } catch (error) {
     next(error);
   }
+});
+
+mediaRouter.post("/api/thumbnails/warmup", (request, response) => {
+  const candidates = listThumbnailCandidates();
+  const queued = queueThumbnailWarmupBatch(candidates);
+
+  response.json({
+    candidates: candidates.length,
+    queued,
+    queue: getThumbnailQueueStatus(),
+  });
+});
+
+mediaRouter.get("/api/thumbnails/warmup/status", (request, response) => {
+  response.json(getThumbnailQueueStatus());
 });
 
 module.exports = {

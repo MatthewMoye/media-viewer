@@ -6,10 +6,13 @@ const {
   listComicAuthors,
   listComicTagSources,
   findComicById,
+  listComicThumbnailCandidates,
 } = require("../database/media-database");
 const {
   getCbzThumbnailPath,
-  ensureCbzThumbnail,
+  queueCbzThumbnailRequest,
+  queueCbzThumbnailWarmupBatch,
+  getCbzThumbnailQueueStatus,
 } = require("../services/cbz-thumbnail-service");
 const { ensureComicCache, getComicCacheDir } = require("../services/cbz-reader");
 const { buildComicTagFacets } = require("../services/comics-facets");
@@ -62,7 +65,7 @@ comicsRouter.get("/comic-thumbnail/:id", async (request, response, next) => {
         return;
       }
 
-      await ensureCbzThumbnail(comic.id, cbzPath, comic.cover_entry);
+      await queueCbzThumbnailRequest(comic.id, cbzPath, comic.cover_entry);
     }
 
     if (!fs.existsSync(thumbnailPath)) {
@@ -76,6 +79,21 @@ comicsRouter.get("/comic-thumbnail/:id", async (request, response, next) => {
   } catch (error) {
     next(error);
   }
+});
+
+comicsRouter.post("/api/comics/thumbnails/warmup", (request, response) => {
+  const candidates = listComicThumbnailCandidates();
+  const queued = queueCbzThumbnailWarmupBatch(candidates);
+
+  response.json({
+    candidates: candidates.length,
+    queued,
+    queue: getCbzThumbnailQueueStatus(),
+  });
+});
+
+comicsRouter.get("/api/comics/thumbnails/warmup/status", (request, response) => {
+  response.json(getCbzThumbnailQueueStatus());
 });
 
 comicsRouter.get("/api/comics/:id/pages", (request, response, next) => {
