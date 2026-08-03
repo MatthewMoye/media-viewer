@@ -25,12 +25,11 @@ const MediaViewerContent = () => {
     requestPageChange,
   } = useMediaViewer();
 
-  const showPagination = !loading && filteredFileCount > 0;
+  const showPagination = filteredFileCount > 0;
 
   return (
     <section className="mb-10 rounded-3xl border border-surface bg-surface-90 p-5 shadow-xl shadow-surface sm:p-6">
       <MediaFilters />
-      {loading && <p className="mt-6 text-muted">Loading media...</p>}
       {!loading && filteredFileCount === 0 && (
         <p className="mt-6 text-muted">No media found.</p>
       )}
@@ -42,6 +41,7 @@ const MediaViewerContent = () => {
             startIndex={startIndex}
             totalItems={filteredFileCount}
             pageSize={pageSize}
+            isLoading={loading}
             onPageChange={requestPageChange}
           />
         </div>
@@ -55,6 +55,7 @@ const MediaViewerContent = () => {
             startIndex={startIndex}
             totalItems={filteredFileCount}
             pageSize={pageSize}
+            isLoading={loading}
             onPageChange={requestPageChange}
           />
         </div>

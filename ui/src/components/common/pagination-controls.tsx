@@ -4,6 +4,7 @@ const PaginationControls = ({
   startIndex,
   totalItems,
   pageSize,
+  isLoading = false,
   onPageChange,
 }: {
   currentPage: number;
@@ -11,6 +12,7 @@ const PaginationControls = ({
   startIndex: number;
   totalItems: number;
   pageSize: number;
+  isLoading?: boolean;
   onPageChange: (page: number) => void;
 }) => {
   if (totalItems === 0) {
@@ -23,25 +25,25 @@ const PaginationControls = ({
         Showing {startIndex + 1}–{Math.min(startIndex + pageSize, totalItems)}{" "}
         of {totalItems}
       </div>
-
+      {isLoading && (
+        <span className="text-sm font-semibold text-primary">(Loading...)</span>
+      )}
       <div className="flex w-full flex-wrap items-center justify-center gap-2 sm:w-auto sm:flex-nowrap">
         <button
           type="button"
           onClick={() => onPageChange(Math.max(1, currentPage - 1))}
-          disabled={currentPage === 1}
+          disabled={isLoading || currentPage === 1}
           className="rounded-full border border-surface bg-surface-strong px-3 py-1.5 text-sm transition disabled:cursor-not-allowed disabled:opacity-50"
         >
           Previous
         </button>
-
         <span className="rounded-full bg-accent px-3 py-1.5 text-center text-sm font-semibold text-primary">
           Page {currentPage} of {totalPages}
         </span>
-
         <button
           type="button"
           onClick={() => onPageChange(Math.min(totalPages, currentPage + 1))}
-          disabled={currentPage === totalPages}
+          disabled={isLoading || currentPage === totalPages}
           className="rounded-full border border-surface bg-surface-strong px-3 py-1.5 text-sm transition disabled:cursor-not-allowed disabled:opacity-50"
         >
           Next

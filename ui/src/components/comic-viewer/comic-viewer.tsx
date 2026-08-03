@@ -16,13 +16,12 @@ const ComicViewerContent = () => {
     setCurrentPage,
   } = useComicViewer();
 
-  const showPagination = !loading && filteredCount > 0;
+  const showPagination = filteredCount > 0;
 
   return (
     <section className="rounded-3xl border border-surface bg-surface-90 p-5 shadow-xl shadow-surface sm:p-6">
       <ComicModal />
       <ComicFilters />
-      {loading && <p className="mt-6 text-muted">Loading comics...</p>}
       {!loading && filteredCount === 0 && (
         <p className="mt-6 text-muted">No comics found.</p>
       )}
@@ -34,6 +33,7 @@ const ComicViewerContent = () => {
             startIndex={startIndex}
             totalItems={filteredCount}
             pageSize={pageSize}
+            isLoading={loading}
             onPageChange={setCurrentPage}
           />
         </div>
@@ -47,6 +47,7 @@ const ComicViewerContent = () => {
             startIndex={startIndex}
             totalItems={filteredCount}
             pageSize={pageSize}
+            isLoading={loading}
             onPageChange={setCurrentPage}
           />
         </div>
