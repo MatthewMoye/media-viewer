@@ -30,7 +30,13 @@ export default tseslint.config(
       "no-console": "off",
       "preserve-caught-error": "off",
       "@typescript-eslint/no-require-imports": "error",
+      "@typescript-eslint/no-empty-function": "error",
+      "@typescript-eslint/no-non-null-assertion": "error",
       "@typescript-eslint/no-explicit-any": "error",
+      "@typescript-eslint/consistent-type-imports": [
+        "warn",
+        { prefer: "type-imports", fixStyle: "inline-type-imports" },
+      ],
       "prettier/prettier": [
         "error",
         {
