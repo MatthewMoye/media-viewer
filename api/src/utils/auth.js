@@ -31,8 +31,18 @@ function authMiddleware(req, res, next) {
   next();
 }
 
+function isAuthenticatedRequest(req) {
+  const token = req.cookies.auth_token;
+  if (!token) {
+    return false;
+  }
+
+  return Boolean(verifyToken(token));
+}
+
 module.exports = {
   generateToken,
   verifyToken,
+  isAuthenticatedRequest,
   authMiddleware,
 };

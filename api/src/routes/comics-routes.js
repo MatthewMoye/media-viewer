@@ -12,42 +12,12 @@ const {
   ensureCbzThumbnail,
 } = require("../services/cbz-thumbnail-service");
 const { ensureComicCache, getComicCacheDir } = require("../services/cbz-reader");
-const { config } = require("../config");
+const { buildComicTagFacets } = require("../services/comics-facets");
+const { parseIdParam } = require("./helpers/request-validators");
+const { requireExistingPath, sendNotFound } = require("./helpers/file-response");
 const { getMimeType } = require("../utils/media-types");
 
 const comicsRouter = express.Router();
-
-function parseTagList(value) {
-  if (!value || typeof value !== "string") return [];
-
-  return value
-    .split(",")
-    .map((entry) => {
-      const trimmed = entry.trim();
-      const colonIndex = trimmed.indexOf(":");
-      return colonIndex >= 0 ? trimmed.slice(colonIndex + 1).trim() : trimmed;
-    })
-    .filter(Boolean);
-}
-
-function buildComicTagFacets() {
-  const rows = listComicTagSources();
-  const counts = new Map();
-
-  for (const row of rows) {
-    const source = row.tags || row.genre || "";
-    const tags = parseTagList(source);
-
-    for (const tag of tags) {
-      counts.set(tag, (counts.get(tag) ?? 0) + 1);
-    }
-  }
-
-  return [...counts.entries()].sort((a, b) => {
-    if (b[1] !== a[1]) return b[1] - a[1];
-    return a[0].localeCompare(b[0]);
-  });
-}
 
 comicsRouter.get("/api/comics", (request, response) => {
   const result = listComics({
@@ -60,7 +30,7 @@ comicsRouter.get("/api/comics", (request, response) => {
   });
 
   const authors = listComicAuthors().map((entry) => [entry.author, entry.count]);
-  const tags = buildComicTagFacets();
+  const tags = buildComicTagFacets(listComicTagSources());
 
   response.json({
     ...result,
@@ -74,7 +44,7 @@ comicsRouter.get("/comic-thumbnail/:id", async (request, response, next) => {
     const comic = findComicById(request.params.id);
 
     if (!comic) {
-      response.status(404).send("Not found");
+      sendNotFound(response);
       return;
     }
 
@@ -88,8 +58,7 @@ comicsRouter.get("/comic-thumbnail/:id", async (request, response, next) => {
 
       const cbzPath = path.resolve(comic.full_path);
 
-      if (!fs.existsSync(cbzPath)) {
-        response.status(404).send("File missing");
+      if (!requireExistingPath(response, cbzPath)) {
         return;
       }
 
@@ -111,24 +80,22 @@ comicsRouter.get("/comic-thumbnail/:id", async (request, response, next) => {
 
 comicsRouter.get("/api/comics/:id/pages", (request, response, next) => {
   try {
-    const comicId = Number.parseInt(request.params.id, 10);
+    const comicId = parseIdParam(request, response);
 
-    if (!Number.isInteger(comicId) || comicId <= 0) {
-      response.status(400).send("Invalid ID");
+    if (comicId === null) {
       return;
     }
 
     const comic = findComicById(comicId);
 
     if (!comic) {
-      response.status(404).send("Not found");
+      sendNotFound(response);
       return;
     }
 
     const cbzPath = path.resolve(comic.full_path);
 
-    if (!fs.existsSync(cbzPath)) {
-      response.status(404).send("File missing");
+    if (!requireExistingPath(response, cbzPath)) {
       return;
     }
 
@@ -145,10 +112,9 @@ comicsRouter.get("/api/comics/:id/pages", (request, response, next) => {
 });
 
 comicsRouter.get("/comic-page/:id/:filename", (request, response) => {
-  const comicId = Number.parseInt(request.params.id, 10);
+  const comicId = parseIdParam(request, response);
 
-  if (!Number.isInteger(comicId) || comicId <= 0) {
-    response.status(400).send("Invalid ID");
+  if (comicId === null) {
     return;
   }
 
@@ -164,8 +130,7 @@ comicsRouter.get("/comic-page/:id/:filename", (request, response) => {
     return;
   }
 
-  if (!fs.existsSync(filePath)) {
-    response.status(404).send("Page not found");
+  if (!requireExistingPath(response, filePath, "Page not found")) {
     return;
   }
 

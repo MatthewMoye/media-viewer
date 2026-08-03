@@ -10,6 +10,7 @@ const {
   ensureThumbnail,
 } = require("../services/thumbnail-service");
 const { getMimeType } = require("../utils/media-types");
+const { requireExistingPath, sendNotFound } = require("./helpers/file-response");
 
 const mediaRouter = express.Router();
 
@@ -74,14 +75,13 @@ mediaRouter.get("/file/:id", (request, response) => {
   const file = findFileForStreaming(request.params.id);
 
   if (!file) {
-    response.status(404).send("Not found");
+    sendNotFound(response);
     return;
   }
 
   const filePath = path.resolve(file.full_path);
 
-  if (!fs.existsSync(filePath)) {
-    response.status(404).send("File missing");
+  if (!requireExistingPath(response, filePath)) {
     return;
   }
 
@@ -124,7 +124,7 @@ mediaRouter.get("/thumbnail/:id", async (request, response, next) => {
     const file = findFileForThumbnail(request.params.id);
 
     if (!file) {
-      response.status(404).send("Not found");
+      sendNotFound(response);
       return;
     }
 
@@ -135,8 +135,7 @@ mediaRouter.get("/thumbnail/:id", async (request, response, next) => {
 
     const filePath = path.resolve(file.full_path);
 
-    if (!fs.existsSync(filePath)) {
-      response.status(404).send("File missing");
+    if (!requireExistingPath(response, filePath)) {
       return;
     }
 
@@ -146,8 +145,7 @@ mediaRouter.get("/thumbnail/:id", async (request, response, next) => {
       thumbnailPath = await ensureThumbnail(file.id, filePath);
     }
 
-    if (!fs.existsSync(thumbnailPath)) {
-      response.status(404).send("Thumbnail not found");
+    if (!requireExistingPath(response, thumbnailPath, "Thumbnail not found")) {
       return;
     }
 

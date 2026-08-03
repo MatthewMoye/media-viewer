@@ -1,45 +1,8 @@
 const fs = require("node:fs");
 const path = require("node:path");
 const AdmZip = require("adm-zip");
-
-const IMAGE_EXTENSIONS = new Set([
-  ".jpg",
-  ".jpeg",
-  ".png",
-  ".gif",
-  ".webp",
-  ".bmp",
-]);
-
-function parseComicInfo(xmlContent) {
-  function getField(tag) {
-    const match = new RegExp(`<${tag}>([^<]*)</${tag}>`).exec(xmlContent);
-    return match ? match[1].trim() || null : null;
-  }
-
-  const yearRaw = getField("Year");
-  const monthRaw = getField("Month");
-  const dayRaw = getField("Day");
-  const pageCountRaw = getField("PageCount");
-
-  return {
-    title: getField("Title"),
-    year: yearRaw ? Number.parseInt(yearRaw, 10) : null,
-    month: monthRaw ? Number.parseInt(monthRaw, 10) : null,
-    day: dayRaw ? Number.parseInt(dayRaw, 10) : null,
-    writer: getField("Writer"),
-    genre: getField("Genre"),
-    tags: getField("Tags"),
-    web: getField("Web"),
-    series: getField("Series"),
-    format: getField("Format"),
-    pageCount: pageCountRaw ? Number.parseInt(pageCountRaw, 10) : null,
-  };
-}
-
-function isImageEntry(entryName) {
-  return IMAGE_EXTENSIONS.has(path.extname(entryName).toLowerCase());
-}
+const { parseComicInfo } = require("./cbz/parse-comic-info");
+const { findCoverEntry } = require("./cbz/find-cover-entry");
 
 function scanCbzFile(rootName, parentFolder, fullPath, stats, existingComicsMap = null) {
   // Check if file hasn't changed
@@ -98,10 +61,7 @@ function scanCbzFile(rootName, parentFolder, fullPath, stats, existingComicsMap 
     }
   }
 
-  const coverEntry = entries
-    .filter((e) => !e.isDirectory && isImageEntry(e.entryName))
-    .map((e) => e.entryName)
-    .sort()[0] ?? null;
+  const coverEntry = findCoverEntry(entries);
 
   return {
     root: rootName,

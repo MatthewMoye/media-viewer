@@ -1,7 +1,7 @@
 const express = require("express");
 const rateLimit = require("express-rate-limit");
 const { config } = require("../config");
-const { generateToken } = require("../utils/auth");
+const { generateToken, isAuthenticatedRequest } = require("../utils/auth");
 
 const authRouter = express.Router();
 
@@ -69,6 +69,16 @@ authRouter.post("/api/logout", (req, res) => {
     path: "/",
   });
   return res.json({ message: "Logged out" });
+});
+
+authRouter.get("/api/auth/status", (req, res) => {
+  const authenticated = isAuthenticatedRequest(req);
+
+  if (!authenticated) {
+    return res.status(401).json({ authenticated: false });
+  }
+
+  return res.json({ authenticated: true });
 });
 
 module.exports = {
