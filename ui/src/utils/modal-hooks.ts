@@ -12,10 +12,8 @@ export const useModalHistoryClose = (
 
     window.history.pushState({ modal: modalState }, "");
 
-    const handlePopState = (event: PopStateEvent) => {
-      if (event.state?.modal === modalState) {
-        onClose();
-      }
+    const handlePopState = () => {
+      onClose();
     };
 
     window.addEventListener("popstate", handlePopState);
