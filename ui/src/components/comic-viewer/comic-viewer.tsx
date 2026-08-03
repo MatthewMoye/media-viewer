@@ -2,7 +2,7 @@ import { ComicViewerProvider } from "./context/comic-viewer-provider";
 import { useComicViewer } from "./context/use-comic-viewer";
 import { ComicFilters } from "./filters/comic-filters";
 import ComicCards from "./comic-cards";
-import ComicModal from "./comic-modal";
+import ComicModal from "./modal/comic-modal";
 import PaginationControls from "../common/pagination-controls";
 
 const ComicViewerContent = () => {

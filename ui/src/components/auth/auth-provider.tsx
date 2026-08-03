@@ -1,5 +1,6 @@
 import { type ReactNode, useCallback, useEffect, useState } from "react";
 import { AuthContext, type AuthContextValue } from "./auth-context";
+import { authenticatedFetch } from "@/utils/authenticated-fetch";
 
 async function readErrorMessage(response: Response): Promise<string> {
   const contentType = response.headers.get("content-type") ?? "";
@@ -18,6 +19,29 @@ async function readErrorMessage(response: Response): Promise<string> {
   return response.statusText || "Login failed";
 }
 
+async function checkSessionAuthenticated(): Promise<boolean> {
+  try {
+    const statusResponse = await authenticatedFetch("/api/auth/status");
+
+    if (statusResponse.ok) {
+      return true;
+    }
+
+    if (statusResponse.status !== 404) {
+      return false;
+    }
+  } catch {
+    return false;
+  }
+
+  try {
+    const fallbackResponse = await authenticatedFetch("/api/comics");
+    return fallbackResponse.ok;
+  } catch {
+    return false;
+  }
+}
+
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isInitializing, setIsInitializing] = useState(true);
@@ -28,10 +52,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     (async () => {
       try {
-        const response = await fetch("/api/comics", {
-          credentials: "include",
-        });
-        if (response.ok) {
+        const isAuthenticated = await checkSessionAuthenticated();
+
+        if (isAuthenticated) {
           setIsAuthenticated(true);
           setUsername("User");
         } else {

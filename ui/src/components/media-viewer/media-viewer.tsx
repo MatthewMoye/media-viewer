@@ -1,6 +1,6 @@
 import MediaFiles from "./media-files";
 import { MediaFilters } from "./filters/media-filters";
-import MediaModal from "./media-modal";
+import MediaModal from "./modal/media-modal";
 import { MediaViewerProvider } from "./context/media-viewer-provider";
 import { useMediaViewer } from "./context/use-media-viewer";
 import PaginationControls from "../common/pagination-controls";

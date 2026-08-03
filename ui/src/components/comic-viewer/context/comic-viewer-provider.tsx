@@ -1,13 +1,13 @@
 import {
   useCallback,
-  useEffect,
   useMemo,
-  useRef,
   useState,
   type PropsWithChildren,
 } from "react";
 import type { ApiComicBook, ApiComicsResponse, ComicBook } from "@/types";
 import { authenticatedFetch } from "@/utils/authenticated-fetch";
+import { createRandomSeed } from "@/utils/random";
+import { usePagedResourceCache } from "@/utils/use-paged-resource-cache";
 import { ComicViewerContext } from "./comic-viewer-context";
 
 const PAGE_SIZE = 30;
@@ -40,13 +40,8 @@ function toComicBook(api: ApiComicBook): ComicBook {
   };
 }
 
-function createRandomSeed() {
-  return Math.floor(Math.random() * 2147483647);
-}
-
 export const ComicViewerProvider = ({ children }: PropsWithChildren) => {
   const [comicBooks, setComicBooks] = useState<ComicBook[]>([]);
-  const [loading, setLoading] = useState(true);
 
   const [searchTerm, setSearchTermState] = useState("");
   const [selectedAuthor, setSelectedAuthorState] = useState<string | null>(null);
@@ -63,7 +58,6 @@ export const ComicViewerProvider = ({ children }: PropsWithChildren) => {
   const [currentPage, setCurrentPageState] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [filteredCount, setFilteredCount] = useState(0);
-  const responseCacheRef = useRef(new Map<string, ApiComicsResponse>());
 
   const [activeComic, setActiveComic] = useState<ComicBook | null>(null);
 
@@ -114,104 +108,33 @@ export const ComicViewerProvider = ({ children }: PropsWithChildren) => {
     setTotalPages(Math.max(1, data.totalPages));
   }, []);
 
-  useEffect(() => {
-    responseCacheRef.current.clear();
-  }, [requestSignature]);
-
-  useEffect(() => {
-    const controller = new AbortController();
-    const currentKey = `${requestSignature}|${currentPage}`;
-
-    const fetchPage = async (page: number, shouldApply: boolean) => {
+  const fetchPage = useCallback(
+    async (page: number, signal: AbortSignal): Promise<ApiComicsResponse> => {
       const queryString = buildQueryString(page);
       const response = await authenticatedFetch(`/api/comics?${queryString}`, {
-        signal: controller.signal,
+        signal,
       });
 
       if (!response.ok) {
         throw new Error("Failed to load comics");
       }
 
-      const data: ApiComicsResponse = await response.json();
-      responseCacheRef.current.set(`${requestSignature}|${page}`, data);
+      return response.json() as Promise<ApiComicsResponse>;
+    },
+    [buildQueryString],
+  );
 
-      if (shouldApply && !controller.signal.aborted) {
-        applyResponse(data);
-      }
-
-      return data;
-    };
-
-    const loadCurrentPage = async () => {
-      const cached = responseCacheRef.current.get(currentKey);
-
-      if (cached) {
-        applyResponse(cached);
-        setLoading(false);
-
-        if (currentPage > 1) {
-          const previousKey = `${requestSignature}|${currentPage - 1}`;
-          if (!responseCacheRef.current.has(previousKey)) {
-            void fetchPage(currentPage - 1, false).catch(() => {});
-          }
-        }
-
-        if (currentPage < cached.totalPages) {
-          const nextKey = `${requestSignature}|${currentPage + 1}`;
-          if (!responseCacheRef.current.has(nextKey)) {
-            void fetchPage(currentPage + 1, false).catch(() => {});
-          }
-        }
-
-        return;
-      }
-
-      setLoading(true);
-
-      try {
-        const data = await fetchPage(currentPage, true);
-
-        if (controller.signal.aborted) {
-          return;
-        }
-
-        if (currentPage > 1) {
-          const previousKey = `${requestSignature}|${currentPage - 1}`;
-          if (!responseCacheRef.current.has(previousKey)) {
-            void fetchPage(currentPage - 1, false).catch(() => {});
-          }
-        }
-
-        if (currentPage < data.totalPages) {
-          const nextKey = `${requestSignature}|${currentPage + 1}`;
-          if (!responseCacheRef.current.has(nextKey)) {
-            void fetchPage(currentPage + 1, false).catch(() => {});
-          }
-        }
-      } catch (error) {
-        if (error instanceof DOMException && error.name === "AbortError") {
-          return;
-        }
-
-        console.error("Failed to load comics:", error);
-      } finally {
-        if (!controller.signal.aborted) {
-          setLoading(false);
-        }
-      }
-    };
-
-    void loadCurrentPage();
-
-    return () => {
-      controller.abort();
-    };
-  }, [
-    applyResponse,
-    buildQueryString,
-    currentPage,
+  const { loading } = usePagedResourceCache<ApiComicsResponse>({
     requestSignature,
-  ]);
+    currentPage,
+    fetchPage,
+    applyResponse,
+    getTotalPages: (data) => Math.max(1, data.totalPages),
+    maxEntries: 12,
+    onError: (error) => {
+      console.error("Failed to load comics:", error);
+    },
+  });
 
   const visibleAuthors = useMemo(() => {
     const query = authorSearch.trim().toLowerCase();
@@ -234,20 +157,24 @@ export const ComicViewerProvider = ({ children }: PropsWithChildren) => {
     Number(Boolean(selectedTag)) +
     Number(Boolean(randomized));
 
-  const setSearchTerm = useCallback((value: string) => {
-    setSearchTermState(value);
+  const resetToFirstPage = useCallback(() => {
     setCurrentPageState(1);
   }, []);
+
+  const setSearchTerm = useCallback((value: string) => {
+    setSearchTermState(value);
+    resetToFirstPage();
+  }, [resetToFirstPage]);
 
   const setSelectedAuthor = useCallback((author: string | null) => {
     setSelectedAuthorState(author);
-    setCurrentPageState(1);
-  }, []);
+    resetToFirstPage();
+  }, [resetToFirstPage]);
 
   const setSelectedTag = useCallback((tag: string | null) => {
     setSelectedTagState(tag);
-    setCurrentPageState(1);
-  }, []);
+    resetToFirstPage();
+  }, [resetToFirstPage]);
 
   const setCurrentPage = useCallback(
     (page: number) => {
@@ -258,18 +185,21 @@ export const ComicViewerProvider = ({ children }: PropsWithChildren) => {
   );
 
   const clearFilters = useCallback(() => {
+    setSearchTermState("");
     setSelectedAuthorState(null);
     setSelectedTagState(null);
+    setAuthorSearch("");
+    setTagSearch("");
     setRandomized(false);
     setRandomSeed(null);
-    setCurrentPageState(1);
-  }, []);
+    resetToFirstPage();
+  }, [resetToFirstPage]);
 
   const shuffleComics = useCallback(() => {
     setRandomized(true);
     setRandomSeed(createRandomSeed());
-    setCurrentPageState(1);
-  }, []);
+    resetToFirstPage();
+  }, [resetToFirstPage]);
 
   const openComic = useCallback((comic: ComicBook) => {
     setActiveComic(comic);

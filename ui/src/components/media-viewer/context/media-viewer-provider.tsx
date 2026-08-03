@@ -13,6 +13,8 @@ import type {
   MediaItem,
 } from "@/types";
 import { authenticatedFetch } from "@/utils/authenticated-fetch";
+import { createRandomSeed } from "@/utils/random";
+import { usePagedResourceCache } from "@/utils/use-paged-resource-cache";
 import { MediaViewerContext, type MediaViewMode } from "./media-viewer-context";
 
 const PAGE_SIZE = 30;
@@ -37,14 +39,9 @@ function toMediaItem(file: ApiMediaFile): MediaItem {
   };
 }
 
-function createRandomSeed() {
-  return Math.floor(Math.random() * 2147483647);
-}
-
 export const MediaViewerProvider = ({ children }: PropsWithChildren) => {
   const [files, setFiles] = useState<MediaItem[]>([]);
   const [folders, setFolders] = useState<string[]>([]);
-  const [loading, setLoading] = useState(true);
 
   const [searchTerm, setSearchTermState] = useState("");
   const [viewMode, setViewModeState] = useState<MediaViewMode>("all");
@@ -62,7 +59,6 @@ export const MediaViewerProvider = ({ children }: PropsWithChildren) => {
   const [filteredFileCount, setFilteredFileCount] = useState(0);
 
   const pageChangeTimeoutRef = useRef<number | null>(null);
-  const responseCacheRef = useRef(new Map<string, ApiMediaFilesResponse>());
 
   const [selectedItemId, setSelectedItemId] = useState("");
   const [modalOpen, setModalOpen] = useState(false);
@@ -138,6 +134,34 @@ export const MediaViewerProvider = ({ children }: PropsWithChildren) => {
     setTotalPages(Math.max(1, data.totalPages));
   }, []);
 
+  const fetchPage = useCallback(
+    async (page: number, signal: AbortSignal): Promise<ApiMediaFilesResponse> => {
+      const queryString = buildQueryString(page);
+      const response = await authenticatedFetch(`/api/files?${queryString}`, {
+        signal,
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to fetch files");
+      }
+
+      return response.json() as Promise<ApiMediaFilesResponse>;
+    },
+    [buildQueryString],
+  );
+
+  const { loading } = usePagedResourceCache<ApiMediaFilesResponse>({
+    requestSignature,
+    currentPage,
+    fetchPage,
+    applyResponse,
+    getTotalPages: (data) => Math.max(1, data.totalPages),
+    maxEntries: 12,
+    onError: (error) => {
+      console.error("Failed to load media:", error);
+    },
+  });
+
   useEffect(() => {
     return () => {
       if (pageChangeTimeoutRef.current !== null) {
@@ -146,109 +170,19 @@ export const MediaViewerProvider = ({ children }: PropsWithChildren) => {
     };
   }, []);
 
-  useEffect(() => {
-    responseCacheRef.current.clear();
-  }, [requestSignature]);
-
-  useEffect(() => {
-    const controller = new AbortController();
-    const currentKey = `${requestSignature}|${currentPage}`;
-
-    const fetchPage = async (page: number, shouldApply: boolean) => {
-      const queryString = buildQueryString(page);
-      const response = await authenticatedFetch(`/api/files?${queryString}`, {
-        signal: controller.signal,
-      });
-
-      if (!response.ok) {
-        throw new Error("Failed to fetch files");
-      }
-
-      const data: ApiMediaFilesResponse = await response.json();
-      responseCacheRef.current.set(`${requestSignature}|${page}`, data);
-
-      if (shouldApply && !controller.signal.aborted) {
-        applyResponse(data);
-      }
-
-      return data;
-    };
-
-    const loadCurrentPage = async () => {
-      const cached = responseCacheRef.current.get(currentKey);
-
-      if (cached) {
-        applyResponse(cached);
-        setLoading(false);
-
-        if (currentPage > 1) {
-          const previousKey = `${requestSignature}|${currentPage - 1}`;
-          if (!responseCacheRef.current.has(previousKey)) {
-            void fetchPage(currentPage - 1, false).catch(() => {});
-          }
-        }
-
-        if (currentPage < cached.totalPages) {
-          const nextKey = `${requestSignature}|${currentPage + 1}`;
-          if (!responseCacheRef.current.has(nextKey)) {
-            void fetchPage(currentPage + 1, false).catch(() => {});
-          }
-        }
-
-        return;
-      }
-
-      setLoading(true);
-
-      try {
-        const data = await fetchPage(currentPage, true);
-
-        if (controller.signal.aborted) {
-          return;
-        }
-
-        if (currentPage > 1) {
-          const previousKey = `${requestSignature}|${currentPage - 1}`;
-          if (!responseCacheRef.current.has(previousKey)) {
-            void fetchPage(currentPage - 1, false).catch(() => {});
-          }
-        }
-
-        if (currentPage < data.totalPages) {
-          const nextKey = `${requestSignature}|${currentPage + 1}`;
-          if (!responseCacheRef.current.has(nextKey)) {
-            void fetchPage(currentPage + 1, false).catch(() => {});
-          }
-        }
-      } catch (error) {
-        if (error instanceof DOMException && error.name === "AbortError") {
-          return;
-        }
-
-        console.error("Failed to load media:", error);
-      } finally {
-        if (!controller.signal.aborted) {
-          setLoading(false);
-        }
-      }
-    };
-
-    void loadCurrentPage();
-
-    return () => {
-      controller.abort();
-    };
-  }, [applyResponse, buildQueryString, currentPage, requestSignature]);
+  const resetToFirstPage = useCallback(() => {
+    setCurrentPage(1);
+  }, []);
 
   const setSearchTerm = useCallback((value: string) => {
     setSearchTermState(value);
-    setCurrentPage(1);
-  }, []);
+    resetToFirstPage();
+  }, [resetToFirstPage]);
 
   const setViewMode = useCallback((mode: MediaViewMode) => {
     setViewModeState(mode);
-    setCurrentPage(1);
-  }, []);
+    resetToFirstPage();
+  }, [resetToFirstPage]);
 
   const setIncludedParentFolder = useCallback((folder: string) => {
     setIncludedParentFolderState(folder);
@@ -259,8 +193,8 @@ export const MediaViewerProvider = ({ children }: PropsWithChildren) => {
       );
     }
 
-    setCurrentPage(1);
-  }, []);
+    resetToFirstPage();
+  }, [resetToFirstPage]);
 
   const toggleExcludedParentFolder = useCallback((folder: string) => {
     setExcludedParentFolders((currentFolders) => {
@@ -279,14 +213,14 @@ export const MediaViewerProvider = ({ children }: PropsWithChildren) => {
       currentFolder === folder ? ALL_FOLDERS : currentFolder,
     );
 
-    setCurrentPage(1);
-  }, []);
+    resetToFirstPage();
+  }, [resetToFirstPage]);
 
   const clearFolderFilters = useCallback(() => {
     setIncludedParentFolderState(ALL_FOLDERS);
     setExcludedParentFolders([]);
-    setCurrentPage(1);
-  }, []);
+    resetToFirstPage();
+  }, [resetToFirstPage]);
 
   const clearAllFilters = useCallback(() => {
     setSearchTermState("");
@@ -295,8 +229,8 @@ export const MediaViewerProvider = ({ children }: PropsWithChildren) => {
     setExcludedParentFolders([]);
     setRandomized(false);
     setRandomSeed(null);
-    setCurrentPage(1);
-  }, []);
+    resetToFirstPage();
+  }, [resetToFirstPage]);
 
   const activeFilterCount = useMemo(() => {
     let count = 0;
@@ -331,8 +265,8 @@ export const MediaViewerProvider = ({ children }: PropsWithChildren) => {
   const shuffleMedia = useCallback(() => {
     setRandomized(true);
     setRandomSeed(createRandomSeed());
-    setCurrentPage(1);
-  }, []);
+    resetToFirstPage();
+  }, [resetToFirstPage]);
 
   const requestPageChange = useCallback(
     (page: number) => {
