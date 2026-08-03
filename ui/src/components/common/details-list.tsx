@@ -12,9 +12,7 @@ const DetailsList = ({ items }: { items: DetailItem[] }) => {
       {items.map((item) => (
         <div key={item.label}>
           <dt className="text-muted">{item.label}</dt>
-          <dd className={item.breakValue ? "break-all" : undefined}>
-            {item.value}
-          </dd>
+          <dd className={item.breakValue ? "break-all" : undefined}>{item.value}</dd>
         </div>
       ))}
     </dl>

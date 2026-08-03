@@ -1,9 +1,4 @@
-import {
-  useCallback,
-  useMemo,
-  useState,
-  type PropsWithChildren,
-} from "react";
+import { useCallback, useMemo, useState, type PropsWithChildren } from "react";
 import type { ApiComicBook, ApiComicsResponse, ComicBook } from "@/types";
 import { authenticatedFetch } from "@/utils/authenticated-fetch";
 import { createRandomSeed } from "@/utils/random";
@@ -140,9 +135,7 @@ export const ComicViewerProvider = ({ children }: PropsWithChildren) => {
     const query = authorSearch.trim().toLowerCase();
     if (!query) return allAuthors;
 
-    return allAuthors.filter(([author]) =>
-      author.toLowerCase().includes(query),
-    );
+    return allAuthors.filter(([author]) => author.toLowerCase().includes(query));
   }, [allAuthors, authorSearch]);
 
   const visibleTags = useMemo(() => {
@@ -153,28 +146,35 @@ export const ComicViewerProvider = ({ children }: PropsWithChildren) => {
   }, [allTags, tagSearch]);
 
   const activeFilterCount =
-    Number(Boolean(selectedAuthor)) +
-    Number(Boolean(selectedTag)) +
-    Number(Boolean(randomized));
+    Number(Boolean(selectedAuthor)) + Number(Boolean(selectedTag)) + Number(Boolean(randomized));
 
   const resetToFirstPage = useCallback(() => {
     setCurrentPageState(1);
   }, []);
 
-  const setSearchTerm = useCallback((value: string) => {
-    setSearchTermState(value);
-    resetToFirstPage();
-  }, [resetToFirstPage]);
+  const setSearchTerm = useCallback(
+    (value: string) => {
+      setSearchTermState(value);
+      resetToFirstPage();
+    },
+    [resetToFirstPage],
+  );
 
-  const setSelectedAuthor = useCallback((author: string | null) => {
-    setSelectedAuthorState(author);
-    resetToFirstPage();
-  }, [resetToFirstPage]);
+  const setSelectedAuthor = useCallback(
+    (author: string | null) => {
+      setSelectedAuthorState(author);
+      resetToFirstPage();
+    },
+    [resetToFirstPage],
+  );
 
-  const setSelectedTag = useCallback((tag: string | null) => {
-    setSelectedTagState(tag);
-    resetToFirstPage();
-  }, [resetToFirstPage]);
+  const setSelectedTag = useCallback(
+    (tag: string | null) => {
+      setSelectedTagState(tag);
+      resetToFirstPage();
+    },
+    [resetToFirstPage],
+  );
 
   const setCurrentPage = useCallback(
     (page: number) => {
@@ -284,9 +284,5 @@ export const ComicViewerProvider = ({ children }: PropsWithChildren) => {
     ],
   );
 
-  return (
-    <ComicViewerContext.Provider value={value}>
-      {children}
-    </ComicViewerContext.Provider>
-  );
+  return <ComicViewerContext.Provider value={value}>{children}</ComicViewerContext.Provider>;
 };

@@ -30,9 +30,7 @@ const MediaViewerContent = () => {
   return (
     <section className="mb-10 rounded-3xl border border-surface bg-surface-90 p-5 shadow-xl shadow-surface sm:p-6">
       <MediaFilters />
-      {!loading && filteredFileCount === 0 && (
-        <p className="mt-6 text-muted">No media found.</p>
-      )}
+      {!loading && filteredFileCount === 0 && <p className="mt-6 text-muted">No media found.</p>}
       {showPagination && (
         <div className="mt-6">
           <PaginationControls

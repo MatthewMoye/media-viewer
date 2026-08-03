@@ -1,16 +1,12 @@
 import { useCallback, useRef, useState } from "react";
 import { useMediaViewer } from "../context/use-media-viewer";
-import {
-  useModalEscapeClose,
-  useModalHistoryClose,
-} from "@/utils/modal-hooks";
+import { useModalEscapeClose, useModalHistoryClose } from "@/utils/modal-hooks";
 import MediaModalHeader from "./media-modal-header";
 import MediaModalContent from "./media-modal-content";
 import MediaModalInfoPanel from "./media-modal-info-panel";
 
 const MediaModal = () => {
-  const { modalOpen, modalItem, modalRef, closeModal, requestFullscreen } =
-    useMediaViewer();
+  const { modalOpen, modalItem, modalRef, closeModal, requestFullscreen } = useMediaViewer();
 
   const overlayRef = useRef<HTMLDivElement | null>(null);
   const [showInfo, setShowInfo] = useState(false);

@@ -6,15 +6,8 @@ import ComicModal from "./modal/comic-modal";
 import PaginationControls from "../common/pagination-controls";
 
 const ComicViewerContent = () => {
-  const {
-    filteredCount,
-    loading,
-    currentPage,
-    totalPages,
-    startIndex,
-    pageSize,
-    setCurrentPage,
-  } = useComicViewer();
+  const { filteredCount, loading, currentPage, totalPages, startIndex, pageSize, setCurrentPage } =
+    useComicViewer();
 
   const showPagination = filteredCount > 0;
 
@@ -22,9 +15,7 @@ const ComicViewerContent = () => {
     <section className="rounded-3xl border border-surface bg-surface-90 p-5 shadow-xl shadow-surface sm:p-6">
       <ComicModal />
       <ComicFilters />
-      {!loading && filteredCount === 0 && (
-        <p className="mt-6 text-muted">No comics found.</p>
-      )}
+      {!loading && filteredCount === 0 && <p className="mt-6 text-muted">No comics found.</p>}
       {showPagination && (
         <div className="mt-6">
           <PaginationControls

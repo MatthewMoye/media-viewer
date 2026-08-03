@@ -1,10 +1,6 @@
 import { useEffect } from "react";
 
-export const useModalHistoryClose = (
-  isOpen: boolean,
-  modalState: string,
-  onClose: () => void,
-) => {
+export const useModalHistoryClose = (isOpen: boolean, modalState: string, onClose: () => void) => {
   useEffect(() => {
     if (!isOpen) {
       return;

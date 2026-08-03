@@ -10,6 +10,4 @@ export type AuthContextValue = {
   isLoading: boolean;
 };
 
-export const AuthContext = createContext<AuthContextValue | undefined>(
-  undefined,
-);
+export const AuthContext = createContext<AuthContextValue | undefined>(undefined);

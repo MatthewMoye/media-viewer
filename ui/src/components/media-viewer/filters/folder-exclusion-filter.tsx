@@ -1,8 +1,7 @@
 import { useMediaViewer } from "../context/use-media-viewer";
 
 export const FolderExclusionFilter = () => {
-  const { folders, excludedParentFolders, toggleExcludedParentFolder } =
-    useMediaViewer();
+  const { folders, excludedParentFolders, toggleExcludedParentFolder } = useMediaViewer();
 
   return (
     <fieldset>
@@ -35,11 +34,7 @@ type FolderExclusionOptionProps = {
   onToggle: () => void;
 };
 
-const FolderExclusionOption = ({
-  folder,
-  excluded,
-  onToggle,
-}: FolderExclusionOptionProps) => {
+const FolderExclusionOption = ({ folder, excluded, onToggle }: FolderExclusionOptionProps) => {
   return (
     <label
       className={`flex cursor-pointer items-center gap-3 rounded-lg px-3 py-2 text-sm transition ${

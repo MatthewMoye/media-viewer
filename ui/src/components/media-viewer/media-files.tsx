@@ -30,9 +30,7 @@ const MediaFiles = () => {
             </span>
           </div>
           <div className="p-4 text-left">
-            <h3 className="text-base font-semibold text-primary truncate">
-              {item.title}
-            </h3>
+            <h3 className="text-base font-semibold text-primary truncate">{item.title}</h3>
           </div>
         </div>
       ))}

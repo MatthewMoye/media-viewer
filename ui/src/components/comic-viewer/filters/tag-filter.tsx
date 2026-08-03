@@ -2,14 +2,8 @@ import { useComicViewer } from "../context/use-comic-viewer";
 import { ChoiceFilter } from "./choice-filter";
 
 export const TagFilter = () => {
-  const {
-    allTags,
-    visibleTags,
-    tagSearch,
-    selectedTag,
-    setTagSearch,
-    setSelectedTag,
-  } = useComicViewer();
+  const { allTags, visibleTags, tagSearch, selectedTag, setTagSearch, setSelectedTag } =
+    useComicViewer();
 
   return (
     <ChoiceFilter

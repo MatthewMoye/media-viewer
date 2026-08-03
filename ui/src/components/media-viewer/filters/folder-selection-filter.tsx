@@ -1,8 +1,7 @@
 import { useMediaViewer } from "../context/use-media-viewer";
 
 export const FolderSelectionFilter = () => {
-  const { folders, includedParentFolder, setIncludedParentFolder } =
-    useMediaViewer();
+  const { folders, includedParentFolder, setIncludedParentFolder } = useMediaViewer();
 
   return (
     <div>

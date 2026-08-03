@@ -42,6 +42,4 @@ export type MediaViewerContextValue = {
   requestFullscreen: () => void;
 };
 
-export const MediaViewerContext = createContext<MediaViewerContextValue | null>(
-  null,
-);
+export const MediaViewerContext = createContext<MediaViewerContextValue | null>(null);

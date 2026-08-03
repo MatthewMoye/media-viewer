@@ -4,8 +4,7 @@ import { ComicSearchFilter } from "./comic-search-filter";
 import { ComicFilterPanel, COMIC_FILTER_PANEL_ID } from "./comic-filter-panel";
 
 export const ComicFilters = () => {
-  const { filtersExpanded, setFiltersExpanded, activeFilterCount, clearFilters } =
-    useComicViewer();
+  const { filtersExpanded, setFiltersExpanded, activeFilterCount, clearFilters } = useComicViewer();
 
   return (
     <div className="space-y-3">

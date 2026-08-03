@@ -21,9 +21,7 @@ const MediaModalHeader = ({
 
   return (
     <div className="flex h-16 shrink-0 items-center justify-between px-4 py-3">
-      <p className="min-w-0 truncate text-sm font-semibold text-primary">
-        {truncatedTitle}
-      </p>
+      <p className="min-w-0 truncate text-sm font-semibold text-primary">{truncatedTitle}</p>
       <div className="ml-3 flex shrink-0 items-center gap-2">
         <ModalActionButton onClick={onToggleInfo} className="hover:bg-accent">
           {showInfo ? "Hide info" : "Info"}

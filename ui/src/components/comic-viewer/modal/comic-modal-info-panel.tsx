@@ -1,10 +1,6 @@
 import DetailsList from "@/components/common/details-list";
 import type { ComicBook } from "@/types";
-import {
-  formatNumber,
-  formatReleaseDate,
-  formatTimestamp,
-} from "@/utils/formatters";
+import { formatNumber, formatReleaseDate, formatTimestamp } from "@/utils/formatters";
 
 const ComicModalInfoPanel = ({ comic }: { comic: ComicBook }) => {
   const details = [

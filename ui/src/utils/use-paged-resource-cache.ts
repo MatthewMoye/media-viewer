@@ -1,5 +1,10 @@
 import { useEffect, useRef, useState } from "react";
 
+const ignorePrefetchError = (error: unknown) => {
+  // Prefetch failures are intentionally ignored; primary page fetch handles errors.
+  void error;
+};
+
 type UsePagedResourceCacheOptions<T> = {
   requestSignature: string;
   currentPage: number;
@@ -67,7 +72,7 @@ export const usePagedResourceCache = <T>({
         const previousKey = `${requestSignature}|${currentPage - 1}`;
 
         if (!responseCacheRef.current.has(previousKey)) {
-          void fetchAndCache(currentPage - 1, false).catch(() => {});
+          void fetchAndCache(currentPage - 1, false).catch(ignorePrefetchError);
         }
       }
 
@@ -75,7 +80,7 @@ export const usePagedResourceCache = <T>({
         const nextKey = `${requestSignature}|${currentPage + 1}`;
 
         if (!responseCacheRef.current.has(nextKey)) {
-          void fetchAndCache(currentPage + 1, false).catch(() => {});
+          void fetchAndCache(currentPage + 1, false).catch(ignorePrefetchError);
         }
       }
     };
@@ -118,11 +123,7 @@ export const usePagedResourceCache = <T>({
     return () => {
       controller.abort();
     };
-  }, [
-    currentPage,
-    requestSignature,
-    maxEntries,
-  ]);
+  }, [currentPage, requestSignature, maxEntries]);
 
   return {
     loading,

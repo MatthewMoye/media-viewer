@@ -6,8 +6,7 @@ import fs from "fs";
 
 const certPath = path.resolve(__dirname, "../api/certs/cert.pem");
 const keyPath = path.resolve(__dirname, "../api/certs/key.pem");
-const useHttps =
-  fs.existsSync(certPath) && fs.existsSync(keyPath);
+const useHttps = fs.existsSync(certPath) && fs.existsSync(keyPath);
 
 const serverConfig: ServerOptions = {
   port: 5173,

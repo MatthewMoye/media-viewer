@@ -1,10 +1,6 @@
 import { useEffect, useState, useCallback } from "react";
 import { authenticatedFetch } from "@/utils/authenticated-fetch";
-import {
-  useLockBodyScroll,
-  useModalEscapeClose,
-  useModalHistoryClose,
-} from "@/utils/modal-hooks";
+import { useLockBodyScroll, useModalEscapeClose, useModalHistoryClose } from "@/utils/modal-hooks";
 import { useComicViewer } from "../context/use-comic-viewer";
 import ComicModalHeader from "./comic-modal-header";
 import ComicPageStage from "./comic-page-stage";

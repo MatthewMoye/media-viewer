@@ -1,17 +1,5 @@
-import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  type PropsWithChildren,
-} from "react";
-import type {
-  ApiMediaFile,
-  ApiMediaFilesResponse,
-  FullscreenElement,
-  MediaItem,
-} from "@/types";
+import { useCallback, useEffect, useMemo, useRef, useState, type PropsWithChildren } from "react";
+import type { ApiMediaFile, ApiMediaFilesResponse, FullscreenElement, MediaItem } from "@/types";
 import { authenticatedFetch } from "@/utils/authenticated-fetch";
 import { createRandomSeed } from "@/utils/random";
 import { usePagedResourceCache } from "@/utils/use-paged-resource-cache";
@@ -44,11 +32,8 @@ export const MediaViewerProvider = ({ children }: PropsWithChildren) => {
 
   const [searchTerm, setSearchTermState] = useState("");
   const [viewMode, setViewModeState] = useState<MediaViewMode>("all");
-  const [includedParentFolder, setIncludedParentFolderState] =
-    useState(ALL_FOLDERS);
-  const [excludedParentFolders, setExcludedParentFolders] = useState<string[]>(
-    [],
-  );
+  const [includedParentFolder, setIncludedParentFolderState] = useState(ALL_FOLDERS);
+  const [excludedParentFolders, setExcludedParentFolders] = useState<string[]>([]);
 
   const [randomized, setRandomized] = useState(false);
   const [randomSeed, setRandomSeed] = useState<number | null>(null);
@@ -78,14 +63,7 @@ export const MediaViewerProvider = ({ children }: PropsWithChildren) => {
       randomSeed,
       pageSize: PAGE_SIZE,
     });
-  }, [
-    searchTerm,
-    viewMode,
-    includedParentFolder,
-    excludedParentFolders,
-    randomized,
-    randomSeed,
-  ]);
+  }, [searchTerm, viewMode, includedParentFolder, excludedParentFolders, randomized, randomSeed]);
 
   const buildQueryString = useCallback(
     (page: number) => {
@@ -116,14 +94,7 @@ export const MediaViewerProvider = ({ children }: PropsWithChildren) => {
 
       return params.toString();
     },
-    [
-      searchTerm,
-      viewMode,
-      includedParentFolder,
-      excludedParentFolders,
-      randomized,
-      randomSeed,
-    ],
+    [searchTerm, viewMode, includedParentFolder, excludedParentFolders, randomized, randomSeed],
   );
 
   const applyResponse = useCallback((data: ApiMediaFilesResponse) => {
@@ -173,47 +144,57 @@ export const MediaViewerProvider = ({ children }: PropsWithChildren) => {
     setCurrentPage(1);
   }, []);
 
-  const setSearchTerm = useCallback((value: string) => {
-    setSearchTermState(value);
-    resetToFirstPage();
-  }, [resetToFirstPage]);
+  const setSearchTerm = useCallback(
+    (value: string) => {
+      setSearchTermState(value);
+      resetToFirstPage();
+    },
+    [resetToFirstPage],
+  );
 
-  const setViewMode = useCallback((mode: MediaViewMode) => {
-    setViewModeState(mode);
-    resetToFirstPage();
-  }, [resetToFirstPage]);
+  const setViewMode = useCallback(
+    (mode: MediaViewMode) => {
+      setViewModeState(mode);
+      resetToFirstPage();
+    },
+    [resetToFirstPage],
+  );
 
-  const setIncludedParentFolder = useCallback((folder: string) => {
-    setIncludedParentFolderState(folder);
+  const setIncludedParentFolder = useCallback(
+    (folder: string) => {
+      setIncludedParentFolderState(folder);
 
-    if (folder !== ALL_FOLDERS) {
-      setExcludedParentFolders((currentFolders) =>
-        currentFolders.filter((excludedFolder) => excludedFolder !== folder),
-      );
-    }
-
-    resetToFirstPage();
-  }, [resetToFirstPage]);
-
-  const toggleExcludedParentFolder = useCallback((folder: string) => {
-    setExcludedParentFolders((currentFolders) => {
-      const folderIsExcluded = currentFolders.includes(folder);
-
-      if (folderIsExcluded) {
-        return currentFolders.filter(
-          (excludedFolder) => excludedFolder !== folder,
+      if (folder !== ALL_FOLDERS) {
+        setExcludedParentFolders((currentFolders) =>
+          currentFolders.filter((excludedFolder) => excludedFolder !== folder),
         );
       }
 
-      return [...currentFolders, folder];
-    });
+      resetToFirstPage();
+    },
+    [resetToFirstPage],
+  );
 
-    setIncludedParentFolderState((currentFolder) =>
-      currentFolder === folder ? ALL_FOLDERS : currentFolder,
-    );
+  const toggleExcludedParentFolder = useCallback(
+    (folder: string) => {
+      setExcludedParentFolders((currentFolders) => {
+        const folderIsExcluded = currentFolders.includes(folder);
 
-    resetToFirstPage();
-  }, [resetToFirstPage]);
+        if (folderIsExcluded) {
+          return currentFolders.filter((excludedFolder) => excludedFolder !== folder);
+        }
+
+        return [...currentFolders, folder];
+      });
+
+      setIncludedParentFolderState((currentFolder) =>
+        currentFolder === folder ? ALL_FOLDERS : currentFolder,
+      );
+
+      resetToFirstPage();
+    },
+    [resetToFirstPage],
+  );
 
   const clearFolderFilters = useCallback(() => {
     setIncludedParentFolderState(ALL_FOLDERS);
@@ -253,13 +234,7 @@ export const MediaViewerProvider = ({ children }: PropsWithChildren) => {
     }
 
     return count;
-  }, [
-    searchTerm,
-    viewMode,
-    includedParentFolder,
-    excludedParentFolders,
-    randomized,
-  ]);
+  }, [searchTerm, viewMode, includedParentFolder, excludedParentFolders, randomized]);
 
   const shuffleMedia = useCallback(() => {
     setRandomized(true);
@@ -378,9 +353,5 @@ export const MediaViewerProvider = ({ children }: PropsWithChildren) => {
     ],
   );
 
-  return (
-    <MediaViewerContext.Provider value={value}>
-      {children}
-    </MediaViewerContext.Provider>
-  );
+  return <MediaViewerContext.Provider value={value}>{children}</MediaViewerContext.Provider>;
 };

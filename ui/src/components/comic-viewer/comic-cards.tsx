@@ -25,15 +25,11 @@ const ComicCards = () => {
             </span>
           </div>
           <div className="p-4">
-            <h3 className="truncate text-base font-semibold text-primary">
-              {comic.title}
-            </h3>
+            <h3 className="truncate text-base font-semibold text-primary">{comic.title}</h3>
             {comic.author !== "Unknown" && (
               <p className="mt-1 truncate text-sm text-muted">{comic.author}</p>
             )}
-            {comic.issue && (
-              <p className="mt-1 text-xs text-muted">{comic.issue}</p>
-            )}
+            {comic.issue && <p className="mt-1 text-xs text-muted">{comic.issue}</p>}
           </div>
         </article>
       ))}

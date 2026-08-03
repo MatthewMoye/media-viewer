@@ -40,5 +40,4 @@ export type ComicViewerContextValue = {
   shuffleComics: () => void;
 };
 
-export const ComicViewerContext =
-  createContext<ComicViewerContextValue | null>(null);
+export const ComicViewerContext = createContext<ComicViewerContextValue | null>(null);

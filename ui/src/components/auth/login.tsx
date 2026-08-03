@@ -20,19 +20,12 @@ export const Login = () => {
   return (
     <div className="flex min-h-screen items-center justify-center bg-primary px-4">
       <div className="w-full max-w-sm rounded-3xl border border-surface bg-surface-80 p-8 shadow-lg">
-        <h1 className="mb-2 text-center text-2xl font-bold text-primary">
-          Media Viewer
-        </h1>
-        <p className="mb-6 text-center text-sm text-muted">
-          Enter your credentials to continue
-        </p>
+        <h1 className="mb-2 text-center text-2xl font-bold text-primary">Media Viewer</h1>
+        <p className="mb-6 text-center text-sm text-muted">Enter your credentials to continue</p>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label
-              htmlFor="username"
-              className="block text-sm font-medium text-primary mb-2"
-            >
+            <label htmlFor="username" className="block text-sm font-medium text-primary mb-2">
               Username
             </label>
             <input
@@ -48,10 +41,7 @@ export const Login = () => {
           </div>
 
           <div>
-            <label
-              htmlFor="password"
-              className="block text-sm font-medium text-primary mb-2"
-            >
+            <label htmlFor="password" className="block text-sm font-medium text-primary mb-2">
               Password
             </label>
             <input
