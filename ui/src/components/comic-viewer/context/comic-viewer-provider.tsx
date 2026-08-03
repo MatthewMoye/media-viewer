@@ -2,30 +2,20 @@ import {
   useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type PropsWithChildren,
 } from "react";
-import type { ApiComicBook, ComicBook } from "@/types";
+import type { ApiComicBook, ApiComicsResponse, ComicBook } from "@/types";
 import { authenticatedFetch } from "@/utils/authenticated-fetch";
 import { ComicViewerContext } from "./comic-viewer-context";
 
 const PAGE_SIZE = 30;
 
-function parseTags(description: string): string[] {
-  if (!description.trim()) return [];
-  return description
-    .split(",")
-    .map((t) => {
-      const trimmed = t.trim();
-      const colonIdx = trimmed.indexOf(":");
-      return colonIdx !== -1 ? trimmed.slice(colonIdx + 1).trim() : trimmed;
-    })
-    .filter(Boolean);
-}
-
 function toComicBook(api: ApiComicBook): ComicBook {
   const baseName = api.filename.replace(/\.cbz$/i, "");
   const parts = [api.year, api.month, api.day].filter(Boolean);
+
   return {
     id: String(api.id),
     title: api.title || baseName,
@@ -50,6 +40,10 @@ function toComicBook(api: ApiComicBook): ComicBook {
   };
 }
 
+function createRandomSeed() {
+  return Math.floor(Math.random() * 2147483647);
+}
+
 export const ComicViewerProvider = ({ children }: PropsWithChildren) => {
   const [comicBooks, setComicBooks] = useState<ComicBook[]>([]);
   const [loading, setLoading] = useState(true);
@@ -61,111 +55,220 @@ export const ComicViewerProvider = ({ children }: PropsWithChildren) => {
   const [tagSearch, setTagSearch] = useState("");
   const [filtersExpanded, setFiltersExpanded] = useState(false);
   const [randomized, setRandomized] = useState(false);
-  const [shuffledIds, setShuffledIds] = useState<string[]>([]);
-  const [currentPage, setCurrentPage] = useState(1);
+  const [randomSeed, setRandomSeed] = useState<number | null>(null);
+
+  const [allAuthors, setAllAuthors] = useState<[string, number][]>([]);
+  const [allTags, setAllTags] = useState<[string, number][]>([]);
+
+  const [currentPage, setCurrentPageState] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [filteredCount, setFilteredCount] = useState(0);
+  const responseCacheRef = useRef(new Map<string, ApiComicsResponse>());
+
   const [activeComic, setActiveComic] = useState<ComicBook | null>(null);
 
-  useEffect(() => {
-    authenticatedFetch("/api/comics")
-      .then((res) => res.json())
-      .then((data: ApiComicBook[]) => setComicBooks(data?.map(toComicBook)))
-      .catch((err) => console.error("Failed to load comics:", err))
-      .finally(() => setLoading(false));
+  const requestSignature = useMemo(() => {
+    return JSON.stringify({
+      search: searchTerm.trim(),
+      selectedAuthor,
+      selectedTag,
+      randomized,
+      randomSeed,
+      pageSize: PAGE_SIZE,
+    });
+  }, [searchTerm, selectedAuthor, selectedTag, randomized, randomSeed]);
+
+  const buildQueryString = useCallback(
+    (page: number) => {
+      const params = new URLSearchParams({
+        page: String(page),
+        pageSize: String(PAGE_SIZE),
+      });
+
+      if (searchTerm.trim() !== "") {
+        params.set("search", searchTerm.trim());
+      }
+
+      if (selectedAuthor) {
+        params.set("author", selectedAuthor);
+      }
+
+      if (selectedTag) {
+        params.set("tag", selectedTag);
+      }
+
+      if (randomized && randomSeed !== null) {
+        params.set("randomSeed", String(randomSeed));
+      }
+
+      return params.toString();
+    },
+    [searchTerm, selectedAuthor, selectedTag, randomized, randomSeed],
+  );
+
+  const applyResponse = useCallback((data: ApiComicsResponse) => {
+    setComicBooks(data.items.map(toComicBook));
+    setAllAuthors(data.authors);
+    setAllTags(data.tags);
+    setFilteredCount(data.totalCount);
+    setTotalPages(Math.max(1, data.totalPages));
   }, []);
 
-  const allTags = useMemo(() => {
-    const tagCounts = new Map<string, number>();
-    for (const comic of comicBooks) {
-      for (const tag of parseTags(comic.description)) {
-        tagCounts.set(tag, (tagCounts.get(tag) ?? 0) + 1);
-      }
-    }
-    return [...tagCounts.entries()].sort(
-      (a, b) => b[1] - a[1] || a[0].localeCompare(b[0]),
-    );
-  }, [comicBooks]);
+  useEffect(() => {
+    responseCacheRef.current.clear();
+  }, [requestSignature]);
 
-  const allAuthors = useMemo(() => {
-    const authorCounts = new Map<string, number>();
-    for (const comic of comicBooks) {
-      authorCounts.set(comic.author, (authorCounts.get(comic.author) ?? 0) + 1);
-    }
-    return [...authorCounts.entries()].sort(
-      (a, b) => b[1] - a[1] || a[0].localeCompare(b[0]),
-    );
-  }, [comicBooks]);
+  useEffect(() => {
+    const controller = new AbortController();
+    const currentKey = `${requestSignature}|${currentPage}`;
+
+    const fetchPage = async (page: number, shouldApply: boolean) => {
+      const queryString = buildQueryString(page);
+      const response = await authenticatedFetch(`/api/comics?${queryString}`, {
+        signal: controller.signal,
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to load comics");
+      }
+
+      const data: ApiComicsResponse = await response.json();
+      responseCacheRef.current.set(`${requestSignature}|${page}`, data);
+
+      if (shouldApply && !controller.signal.aborted) {
+        applyResponse(data);
+      }
+
+      return data;
+    };
+
+    const loadCurrentPage = async () => {
+      const cached = responseCacheRef.current.get(currentKey);
+
+      if (cached) {
+        applyResponse(cached);
+        setLoading(false);
+
+        if (currentPage > 1) {
+          const previousKey = `${requestSignature}|${currentPage - 1}`;
+          if (!responseCacheRef.current.has(previousKey)) {
+            void fetchPage(currentPage - 1, false).catch(() => {});
+          }
+        }
+
+        if (currentPage < cached.totalPages) {
+          const nextKey = `${requestSignature}|${currentPage + 1}`;
+          if (!responseCacheRef.current.has(nextKey)) {
+            void fetchPage(currentPage + 1, false).catch(() => {});
+          }
+        }
+
+        return;
+      }
+
+      setLoading(true);
+
+      try {
+        const data = await fetchPage(currentPage, true);
+
+        if (controller.signal.aborted) {
+          return;
+        }
+
+        if (currentPage > 1) {
+          const previousKey = `${requestSignature}|${currentPage - 1}`;
+          if (!responseCacheRef.current.has(previousKey)) {
+            void fetchPage(currentPage - 1, false).catch(() => {});
+          }
+        }
+
+        if (currentPage < data.totalPages) {
+          const nextKey = `${requestSignature}|${currentPage + 1}`;
+          if (!responseCacheRef.current.has(nextKey)) {
+            void fetchPage(currentPage + 1, false).catch(() => {});
+          }
+        }
+      } catch (error) {
+        if (error instanceof DOMException && error.name === "AbortError") {
+          return;
+        }
+
+        console.error("Failed to load comics:", error);
+      } finally {
+        if (!controller.signal.aborted) {
+          setLoading(false);
+        }
+      }
+    };
+
+    void loadCurrentPage();
+
+    return () => {
+      controller.abort();
+    };
+  }, [
+    applyResponse,
+    buildQueryString,
+    currentPage,
+    requestSignature,
+  ]);
 
   const visibleAuthors = useMemo(() => {
-    const q = authorSearch.trim().toLowerCase();
-    if (!q) return allAuthors;
-    return allAuthors.filter(([author]) => author.toLowerCase().includes(q));
+    const query = authorSearch.trim().toLowerCase();
+    if (!query) return allAuthors;
+
+    return allAuthors.filter(([author]) =>
+      author.toLowerCase().includes(query),
+    );
   }, [allAuthors, authorSearch]);
 
   const visibleTags = useMemo(() => {
-    const q = tagSearch.trim().toLowerCase();
-    if (!q) return allTags;
-    return allTags.filter(([tag]) => tag.toLowerCase().includes(q));
+    const query = tagSearch.trim().toLowerCase();
+    if (!query) return allTags;
+
+    return allTags.filter(([tag]) => tag.toLowerCase().includes(query));
   }, [allTags, tagSearch]);
 
-  const filteredComics = useMemo(() => {
-    const query = searchTerm.trim().toLowerCase();
-    return comicBooks.filter((comic) => {
-      const matchesSearch = !query || comic.title.toLowerCase().includes(query);
-      const matchesAuthor = !selectedAuthor || comic.author === selectedAuthor;
-      const matchesTag =
-        !selectedTag || parseTags(comic.description).includes(selectedTag);
-      return matchesSearch && matchesAuthor && matchesTag;
-    });
-  }, [comicBooks, searchTerm, selectedAuthor, selectedTag]);
-
-  const shuffleComics = useCallback(() => {
-    setRandomized(true);
-    setShuffledIds(
-      filteredComics.map((comic) => comic.id).sort(() => Math.random() - 0.5),
-    );
-    setCurrentPage(1);
-  }, [filteredComics]);
-
-  const orderedComics = useMemo(() => {
-    if (!randomized || shuffledIds.length === 0) return filteredComics;
-    const indexMap = new Map(shuffledIds.map((id, index) => [id, index]));
-    return [...filteredComics].sort((a, b) => {
-      const ai = indexMap.get(a.id) ?? Infinity;
-      const bi = indexMap.get(b.id) ?? Infinity;
-      return ai - bi;
-    });
-  }, [filteredComics, randomized, shuffledIds]);
-
-  const totalPages = Math.max(1, Math.ceil(orderedComics.length / PAGE_SIZE));
-  const safePage = Math.min(currentPage, totalPages);
-  const startIndex = (safePage - 1) * PAGE_SIZE;
-
-  const visibleComics = useMemo(
-    () => orderedComics.slice(startIndex, startIndex + PAGE_SIZE),
-    [orderedComics, startIndex],
-  );
-
-  const activeFilterCount = Number(Boolean(selectedAuthor)) + Number(Boolean(selectedTag)) + Number(Boolean(randomized));
+  const activeFilterCount =
+    Number(Boolean(selectedAuthor)) +
+    Number(Boolean(selectedTag)) +
+    Number(Boolean(randomized));
 
   const setSearchTerm = useCallback((value: string) => {
     setSearchTermState(value);
-    setCurrentPage(1);
+    setCurrentPageState(1);
   }, []);
 
   const setSelectedAuthor = useCallback((author: string | null) => {
     setSelectedAuthorState(author);
-    setCurrentPage(1);
+    setCurrentPageState(1);
   }, []);
 
   const setSelectedTag = useCallback((tag: string | null) => {
     setSelectedTagState(tag);
-    setCurrentPage(1);
+    setCurrentPageState(1);
   }, []);
+
+  const setCurrentPage = useCallback(
+    (page: number) => {
+      const nextPage = Math.min(Math.max(1, page), totalPages);
+      setCurrentPageState(nextPage);
+    },
+    [totalPages],
+  );
 
   const clearFilters = useCallback(() => {
     setSelectedAuthorState(null);
     setSelectedTagState(null);
-    setCurrentPage(1);
+    setRandomized(false);
+    setRandomSeed(null);
+    setCurrentPageState(1);
+  }, []);
+
+  const shuffleComics = useCallback(() => {
+    setRandomized(true);
+    setRandomSeed(createRandomSeed());
+    setCurrentPageState(1);
   }, []);
 
   const openComic = useCallback((comic: ComicBook) => {
@@ -176,12 +279,15 @@ export const ComicViewerProvider = ({ children }: PropsWithChildren) => {
     setActiveComic(null);
   }, []);
 
+  const startIndex = (currentPage - 1) * PAGE_SIZE;
+
   const value = useMemo(
     () => ({
       comicBooks,
-      visibleComics,
-      filteredCount: filteredComics.length,
+      visibleComics: comicBooks,
+      filteredCount,
       loading,
+
       searchTerm,
       selectedAuthor,
       selectedTag,
@@ -194,11 +300,14 @@ export const ComicViewerProvider = ({ children }: PropsWithChildren) => {
       activeFilterCount,
       filtersExpanded,
       randomized,
-      currentPage: safePage,
+
+      currentPage,
       totalPages,
       startIndex,
       pageSize: PAGE_SIZE,
+
       activeComic,
+
       setSearchTerm,
       setSelectedAuthor,
       setSelectedTag,
@@ -213,8 +322,7 @@ export const ComicViewerProvider = ({ children }: PropsWithChildren) => {
     }),
     [
       comicBooks,
-      visibleComics,
-      filteredComics.length,
+      filteredCount,
       loading,
       searchTerm,
       selectedAuthor,
@@ -228,7 +336,7 @@ export const ComicViewerProvider = ({ children }: PropsWithChildren) => {
       activeFilterCount,
       filtersExpanded,
       randomized,
-      safePage,
+      currentPage,
       totalPages,
       startIndex,
       activeComic,
@@ -236,9 +344,12 @@ export const ComicViewerProvider = ({ children }: PropsWithChildren) => {
       setSelectedAuthor,
       setSelectedTag,
       setAuthorSearch,
-      clearFilters,
+      setTagSearch,
+      setFiltersExpanded,
+      setCurrentPage,
       openComic,
       closeComic,
+      clearFilters,
       shuffleComics,
     ],
   );

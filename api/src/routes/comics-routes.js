@@ -1,7 +1,12 @@
 const express = require("express");
 const fs = require("node:fs");
 const path = require("node:path");
-const { listComics, findComicById } = require("../database/media-database");
+const {
+  listComics,
+  listComicAuthors,
+  listComicTagSources,
+  findComicById,
+} = require("../database/media-database");
 const {
   getCbzThumbnailPath,
   ensureCbzThumbnail,
@@ -12,9 +17,56 @@ const { getMimeType } = require("../utils/media-types");
 
 const comicsRouter = express.Router();
 
+function parseTagList(value) {
+  if (!value || typeof value !== "string") return [];
+
+  return value
+    .split(",")
+    .map((entry) => {
+      const trimmed = entry.trim();
+      const colonIndex = trimmed.indexOf(":");
+      return colonIndex >= 0 ? trimmed.slice(colonIndex + 1).trim() : trimmed;
+    })
+    .filter(Boolean);
+}
+
+function buildComicTagFacets() {
+  const rows = listComicTagSources();
+  const counts = new Map();
+
+  for (const row of rows) {
+    const source = row.tags || row.genre || "";
+    const tags = parseTagList(source);
+
+    for (const tag of tags) {
+      counts.set(tag, (counts.get(tag) ?? 0) + 1);
+    }
+  }
+
+  return [...counts.entries()].sort((a, b) => {
+    if (b[1] !== a[1]) return b[1] - a[1];
+    return a[0].localeCompare(b[0]);
+  });
+}
+
 comicsRouter.get("/api/comics", (request, response) => {
-  const comics = listComics();
-  response.json(comics);
+  const result = listComics({
+    page: request.query.page,
+    pageSize: request.query.pageSize,
+    search: request.query.search,
+    author: request.query.author,
+    tag: request.query.tag,
+    randomSeed: request.query.randomSeed,
+  });
+
+  const authors = listComicAuthors().map((entry) => [entry.author, entry.count]);
+  const tags = buildComicTagFacets();
+
+  response.json({
+    ...result,
+    authors,
+    tags,
+  });
 });
 
 comicsRouter.get("/comic-thumbnail/:id", async (request, response, next) => {

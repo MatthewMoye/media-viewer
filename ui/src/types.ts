@@ -12,6 +12,15 @@ export type ApiMediaFile = {
   thumbnail_generated: number;
 };
 
+export type ApiMediaFilesResponse = {
+  items: ApiMediaFile[];
+  totalCount: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+  folders: string[];
+};
+
 export type MediaItem = {
   id: string;
   type: MediaType;
@@ -67,6 +76,16 @@ export type ApiComicBook = {
   series: string | null;
   format: string | null;
   page_count: number | null;
+};
+
+export type ApiComicsResponse = {
+  items: ApiComicBook[];
+  totalCount: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+  authors: [string, number][];
+  tags: [string, number][];
 };
 
 export type FullscreenElement = HTMLDivElement & {

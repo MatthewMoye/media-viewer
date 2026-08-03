@@ -6,12 +6,40 @@ import {
   useState,
   type PropsWithChildren,
 } from "react";
-import type { ApiMediaFile, FullscreenElement, MediaItem } from "@/types";
+import type {
+  ApiMediaFile,
+  ApiMediaFilesResponse,
+  FullscreenElement,
+  MediaItem,
+} from "@/types";
 import { authenticatedFetch } from "@/utils/authenticated-fetch";
 import { MediaViewerContext, type MediaViewMode } from "./media-viewer-context";
 
 const PAGE_SIZE = 30;
 const ALL_FOLDERS = "all";
+
+function toMediaItem(file: ApiMediaFile): MediaItem {
+  const parentFolder = file.parent_folder || "Unknown";
+
+  return {
+    id: String(file.id),
+    title: file.filename.replaceAll("-", " ").replaceAll("_", " "),
+    type: file.type,
+    thumbnail:
+      file.type === "video" ? `/thumbnail/${file.id}` : `/file/${file.id}`,
+    root: file.root,
+    parent_folder: parentFolder,
+    filename: file.filename,
+    extension: file.extension,
+    size: file.size,
+    modified: file.modified,
+    thumbnail_generated: file.thumbnail_generated,
+  };
+}
+
+function createRandomSeed() {
+  return Math.floor(Math.random() * 2147483647);
+}
 
 export const MediaViewerProvider = ({ children }: PropsWithChildren) => {
   const [files, setFiles] = useState<MediaItem[]>([]);
@@ -20,19 +48,21 @@ export const MediaViewerProvider = ({ children }: PropsWithChildren) => {
 
   const [searchTerm, setSearchTermState] = useState("");
   const [viewMode, setViewModeState] = useState<MediaViewMode>("all");
-
   const [includedParentFolder, setIncludedParentFolderState] =
     useState(ALL_FOLDERS);
-
   const [excludedParentFolders, setExcludedParentFolders] = useState<string[]>(
     [],
   );
 
   const [randomized, setRandomized] = useState(false);
-  const [shuffledIds, setShuffledIds] = useState<string[]>([]);
+  const [randomSeed, setRandomSeed] = useState<number | null>(null);
 
   const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [filteredFileCount, setFilteredFileCount] = useState(0);
+
   const pageChangeTimeoutRef = useRef<number | null>(null);
+  const responseCacheRef = useRef(new Map<string, ApiMediaFilesResponse>());
 
   const [selectedItemId, setSelectedItemId] = useState("");
   const [modalOpen, setModalOpen] = useState(false);
@@ -40,53 +70,156 @@ export const MediaViewerProvider = ({ children }: PropsWithChildren) => {
 
   const modalRef = useRef<HTMLDivElement | null>(null);
 
+  const requestSignature = useMemo(() => {
+    const normalizedSearch = searchTerm.trim();
+    const sortedExcludedFolders = [...excludedParentFolders].sort();
+
+    return JSON.stringify({
+      normalizedSearch,
+      viewMode,
+      includedParentFolder,
+      sortedExcludedFolders,
+      randomized,
+      randomSeed,
+      pageSize: PAGE_SIZE,
+    });
+  }, [
+    searchTerm,
+    viewMode,
+    includedParentFolder,
+    excludedParentFolders,
+    randomized,
+    randomSeed,
+  ]);
+
+  const buildQueryString = useCallback(
+    (page: number) => {
+      const params = new URLSearchParams({
+        page: String(page),
+        pageSize: String(PAGE_SIZE),
+      });
+
+      if (searchTerm.trim() !== "") {
+        params.set("search", searchTerm.trim());
+      }
+
+      if (viewMode !== "all") {
+        params.set("type", viewMode);
+      }
+
+      if (includedParentFolder !== ALL_FOLDERS) {
+        params.set("includeFolder", includedParentFolder);
+      }
+
+      if (excludedParentFolders.length > 0) {
+        params.set("excludeFolders", excludedParentFolders.join(","));
+      }
+
+      if (randomized && randomSeed !== null) {
+        params.set("randomSeed", String(randomSeed));
+      }
+
+      return params.toString();
+    },
+    [
+      searchTerm,
+      viewMode,
+      includedParentFolder,
+      excludedParentFolders,
+      randomized,
+      randomSeed,
+    ],
+  );
+
+  const applyResponse = useCallback((data: ApiMediaFilesResponse) => {
+    setFiles(data.items.map(toMediaItem));
+    setFolders(data.folders);
+    setFilteredFileCount(data.totalCount);
+    setTotalPages(Math.max(1, data.totalPages));
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (pageChangeTimeoutRef.current !== null) {
+        window.clearTimeout(pageChangeTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    responseCacheRef.current.clear();
+  }, [requestSignature]);
+
   useEffect(() => {
     const controller = new AbortController();
+    const currentKey = `${requestSignature}|${currentPage}`;
 
-    const getFiles = async () => {
-      try {
-        const response = await authenticatedFetch("/api/files", {
-          signal: controller.signal,
-        });
+    const fetchPage = async (page: number, shouldApply: boolean) => {
+      const queryString = buildQueryString(page);
+      const response = await authenticatedFetch(`/api/files?${queryString}`, {
+        signal: controller.signal,
+      });
 
-        if (!response.ok) {
-          throw new Error("Failed to fetch files");
+      if (!response.ok) {
+        throw new Error("Failed to fetch files");
+      }
+
+      const data: ApiMediaFilesResponse = await response.json();
+      responseCacheRef.current.set(`${requestSignature}|${page}`, data);
+
+      if (shouldApply && !controller.signal.aborted) {
+        applyResponse(data);
+      }
+
+      return data;
+    };
+
+    const loadCurrentPage = async () => {
+      const cached = responseCacheRef.current.get(currentKey);
+
+      if (cached) {
+        applyResponse(cached);
+        setLoading(false);
+
+        if (currentPage > 1) {
+          const previousKey = `${requestSignature}|${currentPage - 1}`;
+          if (!responseCacheRef.current.has(previousKey)) {
+            void fetchPage(currentPage - 1, false).catch(() => {});
+          }
         }
 
-        const data: ApiMediaFile[] = await response.json();
-        const folderSet = new Set<string>();
-
-        const media = data.reduce<MediaItem[]>((accumulator, file) => {
-          if (file.type !== "image" && file.type !== "video") {
-            return accumulator;
+        if (currentPage < cached.totalPages) {
+          const nextKey = `${requestSignature}|${currentPage + 1}`;
+          if (!responseCacheRef.current.has(nextKey)) {
+            void fetchPage(currentPage + 1, false).catch(() => {});
           }
+        }
 
-          const parentFolder = file.parent_folder || "Unknown";
+        return;
+      }
 
-          folderSet.add(parentFolder);
+      setLoading(true);
 
-          accumulator.push({
-            id: String(file.id),
-            title: file.filename.replaceAll("-", " ").replaceAll("_", " "),
-            type: file.type,
-            thumbnail:
-              file.type === "video"
-                ? `/thumbnail/${file.id}`
-                : `/file/${file.id}`,
-            root: file.root,
-            parent_folder: parentFolder,
-            filename: file.filename,
-            extension: file.extension,
-            size: file.size,
-            modified: file.modified,
-            thumbnail_generated: file.thumbnail_generated,
-          });
+      try {
+        const data = await fetchPage(currentPage, true);
 
-          return accumulator;
-        }, []);
+        if (controller.signal.aborted) {
+          return;
+        }
 
-        setFiles(media);
-        setFolders([...folderSet].sort());
+        if (currentPage > 1) {
+          const previousKey = `${requestSignature}|${currentPage - 1}`;
+          if (!responseCacheRef.current.has(previousKey)) {
+            void fetchPage(currentPage - 1, false).catch(() => {});
+          }
+        }
+
+        if (currentPage < data.totalPages) {
+          const nextKey = `${requestSignature}|${currentPage + 1}`;
+          if (!responseCacheRef.current.has(nextKey)) {
+            void fetchPage(currentPage + 1, false).catch(() => {});
+          }
+        }
       } catch (error) {
         if (error instanceof DOMException && error.name === "AbortError") {
           return;
@@ -100,20 +233,12 @@ export const MediaViewerProvider = ({ children }: PropsWithChildren) => {
       }
     };
 
-    void getFiles();
+    void loadCurrentPage();
 
     return () => {
       controller.abort();
     };
-  }, []);
-
-  useEffect(() => {
-    return () => {
-      if (pageChangeTimeoutRef.current !== null) {
-        window.clearTimeout(pageChangeTimeoutRef.current);
-      }
-    };
-  }, []);
+  }, [applyResponse, buildQueryString, currentPage, requestSignature]);
 
   const setSearchTerm = useCallback((value: string) => {
     setSearchTermState(value);
@@ -168,40 +293,10 @@ export const MediaViewerProvider = ({ children }: PropsWithChildren) => {
     setViewModeState("all");
     setIncludedParentFolderState(ALL_FOLDERS);
     setExcludedParentFolders([]);
+    setRandomized(false);
+    setRandomSeed(null);
     setCurrentPage(1);
   }, []);
-
-  const filteredFiles = useMemo(() => {
-    const normalizedSearchTerm = searchTerm.trim().toLowerCase();
-    return files.filter((item) => {
-      const matchesSearch =
-        normalizedSearchTerm === "" ||
-        item.title.toLowerCase().includes(normalizedSearchTerm);
-
-      const matchesType = viewMode === "all" || item.type === viewMode;
-
-      const matchesIncludedFolder =
-        includedParentFolder === ALL_FOLDERS ||
-        item.parent_folder === includedParentFolder;
-
-      const matchesExcludedFolders = !excludedParentFolders.includes(
-        item.parent_folder,
-      );
-
-      return (
-        matchesSearch &&
-        matchesType &&
-        matchesIncludedFolder &&
-        matchesExcludedFolders
-      );
-    });
-  }, [
-    files,
-    searchTerm,
-    viewMode,
-    includedParentFolder,
-    excludedParentFolders,
-  ]);
 
   const activeFilterCount = useMemo(() => {
     let count = 0;
@@ -235,31 +330,9 @@ export const MediaViewerProvider = ({ children }: PropsWithChildren) => {
 
   const shuffleMedia = useCallback(() => {
     setRandomized(true);
-    setShuffledIds(
-      filteredFiles.map((f) => f.id).sort(() => Math.random() - 0.5),
-    );
+    setRandomSeed(createRandomSeed());
     setCurrentPage(1);
-  }, [filteredFiles]);
-
-  const orderedFiles = useMemo(() => {
-    if (!randomized || shuffledIds.length === 0) return filteredFiles;
-    const indexMap = new Map(shuffledIds.map((id, i) => [id, i]));
-    return [...filteredFiles].sort((a, b) => {
-      const ai = indexMap.get(a.id) ?? Infinity;
-      const bi = indexMap.get(b.id) ?? Infinity;
-      return ai - bi;
-    });
-  }, [filteredFiles, randomized, shuffledIds]);
-
-  const totalPages = Math.max(1, Math.ceil(orderedFiles.length / PAGE_SIZE));
-
-  const safePage = Math.min(currentPage, totalPages);
-  const startIndex = (safePage - 1) * PAGE_SIZE;
-
-  const visibleFiles = useMemo(
-    () => orderedFiles.slice(startIndex, startIndex + PAGE_SIZE),
-    [orderedFiles, startIndex],
-  );
+  }, []);
 
   const requestPageChange = useCallback(
     (page: number) => {
@@ -301,12 +374,14 @@ export const MediaViewerProvider = ({ children }: PropsWithChildren) => {
     }
   }, []);
 
+  const startIndex = (Math.max(1, currentPage) - 1) * PAGE_SIZE;
+
   const value = useMemo(
     () => ({
       files,
       folders,
-      visibleFiles,
-      filteredFileCount: orderedFiles.length,
+      visibleFiles: files,
+      filteredFileCount,
       loading,
 
       searchTerm,
@@ -316,7 +391,7 @@ export const MediaViewerProvider = ({ children }: PropsWithChildren) => {
       activeFilterCount,
       randomized,
 
-      currentPage: safePage,
+      currentPage,
       totalPages,
       startIndex,
       pageSize: PAGE_SIZE,
@@ -342,8 +417,7 @@ export const MediaViewerProvider = ({ children }: PropsWithChildren) => {
     [
       files,
       folders,
-      visibleFiles,
-      orderedFiles.length,
+      filteredFileCount,
       loading,
       searchTerm,
       viewMode,
@@ -351,7 +425,7 @@ export const MediaViewerProvider = ({ children }: PropsWithChildren) => {
       excludedParentFolders,
       activeFilterCount,
       randomized,
-      safePage,
+      currentPage,
       totalPages,
       startIndex,
       selectedItemId,

@@ -49,7 +49,7 @@ export const ChoiceFilter = <T extends string>({
             className={`max-w-full rounded-full px-4 py-2 text-sm font-medium transition ${
               selectedValue === null
                 ? "bg-accent text-primary shadow-lg shadow-accent"
-                : "border border-surface bg-surface-strong text-primary hover:border-accent"
+                : "bg-surface-strong text-primary hover:border-accent"
             }`}
           >
             All
@@ -68,7 +68,7 @@ export const ChoiceFilter = <T extends string>({
               className={`inline-flex max-w-full items-center gap-1.5 rounded-full px-4 py-2 text-sm font-medium transition ${
                 isSelected
                   ? "bg-accent text-primary shadow-lg shadow-accent"
-                  : "border border-surface bg-surface-strong text-primary hover:border-accent"
+                  : "bg-surface-strong text-primary hover:border-accent"
               }`}
             >
               <span className="min-w-0 truncate">{valueLabel(option)}</span>

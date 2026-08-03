@@ -9,26 +9,10 @@ const PANEL_ID = "media-filter-panel";
 export const MediaFilters = () => {
   const [filtersExpanded, setFiltersExpanded] = useState(false);
 
-  const {
-    viewMode,
-    includedParentFolder,
-    excludedParentFolders,
-    setViewMode,
-    clearFolderFilters,
-  } = useMediaViewer();
-
-  const activeFilterCount =
-    (viewMode !== "all" ? 1 : 0) +
-    (includedParentFolder !== "all" ? 1 : 0) +
-    excludedParentFolders.length;
+  const { activeFilterCount, clearAllFilters } = useMediaViewer();
 
   const toggleFilters = () => {
     setFiltersExpanded((currentValue) => !currentValue);
-  };
-
-  const clearFilters = () => {
-    setViewMode("all");
-    clearFolderFilters();
   };
 
   return (
@@ -40,7 +24,7 @@ export const MediaFilters = () => {
           activeFilterCount={activeFilterCount}
           panelId={PANEL_ID}
           onToggle={toggleFilters}
-          onClear={clearFilters}
+          onClear={clearAllFilters}
         />
       </div>
       <FilterPanel expanded={filtersExpanded} />
