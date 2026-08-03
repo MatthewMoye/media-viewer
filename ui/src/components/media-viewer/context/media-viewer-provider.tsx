@@ -73,7 +73,13 @@ export const MediaViewerProvider = ({ children }: PropsWithChildren) => {
               file.type === "video"
                 ? `/thumbnail/${file.id}`
                 : `/file/${file.id}`,
+            root: file.root,
             parent_folder: parentFolder,
+            filename: file.filename,
+            extension: file.extension,
+            size: file.size,
+            modified: file.modified,
+            thumbnail_generated: file.thumbnail_generated,
           });
 
           return accumulator;

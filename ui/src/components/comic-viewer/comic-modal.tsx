@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import { authenticatedFetch } from "@/utils/authenticated-fetch";
 import { useComicViewer } from "./context/use-comic-viewer";
 
@@ -9,6 +9,7 @@ const ComicModal = () => {
   const [currentPage, setCurrentPage] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(false);
+  const [showInfo, setShowInfo] = useState(false);
 
   useEffect(() => {
     if (!activeComic) return;
@@ -16,10 +17,13 @@ const ComicModal = () => {
     let isMounted = true;
 
     (async () => {
+      setShowInfo(false);
       setLoading(true);
 
       try {
-        const res = await authenticatedFetch(`/api/comics/${activeComic.id}/pages`);
+        const res = await authenticatedFetch(
+          `/api/comics/${activeComic.id}/pages`,
+        );
         if (!res.ok) throw new Error("Failed to fetch pages");
         const data: { pages: string[] } = await res.json();
         if (isMounted) {
@@ -94,10 +98,28 @@ const ComicModal = () => {
     };
   }, [activeComic]);
 
+  const formattedSize = useMemo(() => {
+    if (!activeComic?.size) return "";
+    return new Intl.NumberFormat().format(activeComic.size);
+  }, [activeComic]);
+
+  const formattedModified = useMemo(() => {
+    if (!activeComic?.modified) return "";
+    return new Date(activeComic.modified).toLocaleString();
+  }, [activeComic]);
+
   if (!activeComic) return null;
 
   const hasPrev = currentPage > 0;
   const hasNext = currentPage < pages.length - 1;
+
+  const releaseParts = [
+    activeComic.year,
+    activeComic.month,
+    activeComic.day,
+  ].filter((part): part is number => typeof part === "number");
+  const releaseDate =
+    releaseParts.length > 0 ? releaseParts.join("-") : "Unknown";
 
   return (
     <div
@@ -106,17 +128,11 @@ const ComicModal = () => {
       aria-modal="true"
       aria-label={activeComic.title}
     >
-      {/* Header */}
       <div className="flex shrink-0 items-center justify-between border-b border-surface bg-surface-90 px-4 py-3">
         <div className="min-w-0">
           <p className="truncate text-sm font-semibold text-primary">
             {activeComic.title}
           </p>
-          {pages.length > 0 && (
-            <p className="text-xs text-muted">
-              Page {currentPage + 1} of {pages.length}
-            </p>
-          )}
         </div>
         <div className="ml-4 flex shrink-0 items-center gap-2">
           {pages.length > 0 && (
@@ -141,6 +157,13 @@ const ComicModal = () => {
           )}
           <button
             type="button"
+            onClick={() => setShowInfo((current) => !current)}
+            className="rounded-full bg-surface-strong px-3 py-2 text-xs font-semibold text-primary transition hover:bg-accent"
+          >
+            {showInfo ? "Hide info" : "Info"}
+          </button>
+          <button
+            type="button"
             onClick={closeComic}
             className="rounded-full bg-surface-strong px-3 py-2 text-xs font-semibold text-primary transition hover:bg-accent"
           >
@@ -148,45 +171,106 @@ const ComicModal = () => {
           </button>
         </div>
       </div>
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-black md:flex-row">
+        <div className="relative flex min-h-0 flex-1 items-center justify-center overflow-hidden bg-black">
+          {loading && <p className="text-sm text-muted">Loading pages...</p>}
+          {error && (
+            <p className="text-sm text-muted">Failed to load this comic.</p>
+          )}
+          {!loading && !error && pages.length === 0 && (
+            <p className="text-sm text-muted">No pages found in this file.</p>
+          )}
+          {!loading && pages.length > 0 && (
+            <img
+              key={pages[currentPage]}
+              src={pages[currentPage]}
+              alt={`Page ${currentPage + 1}`}
+              draggable={false}
+              className="h-full w-full object-contain"
+            />
+          )}
 
-      {/* Content */}
-      <div className="relative flex min-h-0 flex-1 items-center justify-center overflow-hidden bg-black">
-        {loading && <p className="text-sm text-muted">Loading pages...</p>}
-        {error && (
-          <p className="text-sm text-muted">Failed to load this comic.</p>
-        )}
-        {!loading && !error && pages.length === 0 && (
-          <p className="text-sm text-muted">No pages found in this file.</p>
-        )}
-        {!loading && pages.length > 0 && (
-          <img
-            key={pages[currentPage]}
-            src={pages[currentPage]}
-            alt={`Page ${currentPage + 1}`}
-            draggable={false}
-            className="max-h-full max-w-full object-contain"
-          />
-        )}
+          {hasPrev && (
+            <button
+              type="button"
+              aria-label="Previous page"
+              onClick={goToPrev}
+              className="absolute left-0 top-0 h-full w-1/3 cursor-w-resize opacity-0"
+            />
+          )}
+          {hasNext && (
+            <button
+              type="button"
+              aria-label="Next page"
+              onClick={goToNext}
+              className="absolute right-0 top-0 h-full w-1/3 cursor-e-resize opacity-0"
+            />
+          )}
+        </div>
 
-        {hasPrev && (
-          <button
-            type="button"
-            aria-label="Previous page"
-            onClick={goToPrev}
-            className="absolute left-0 top-0 h-full w-1/3 cursor-w-resize opacity-0"
-          />
-        )}
-        {hasNext && (
-          <button
-            type="button"
-            aria-label="Next page"
-            onClick={goToNext}
-            className="absolute right-0 top-0 h-full w-1/3 cursor-e-resize opacity-0"
-          />
+        {showInfo && (
+          <aside className="w-full shrink-0 overflow-y-auto border-t border-surface bg-surface-90 p-4 text-sm text-primary md:w-[320px] md:border-l md:border-t-0">
+            <h3 className="mb-3 text-sm font-semibold text-primary">
+              Comic details
+            </h3>
+
+            <dl className="space-y-2 text-xs">
+              <div>
+                <dt className="text-muted">Title</dt>
+                <dd className="break-all">{activeComic.title}</dd>
+              </div>
+              <div>
+                <dt className="text-muted">Filename</dt>
+                <dd className="break-all">{activeComic.filename}</dd>
+              </div>
+              <div>
+                <dt className="text-muted">Author</dt>
+                <dd>{activeComic.author || "Unknown"}</dd>
+              </div>
+              <div>
+                <dt className="text-muted">Release date</dt>
+                <dd>{releaseDate}</dd>
+              </div>
+              <div>
+                <dt className="text-muted">Series</dt>
+                <dd>{activeComic.series || "Unknown"}</dd>
+              </div>
+              <div>
+                <dt className="text-muted">Format</dt>
+                <dd>{activeComic.format || "Unknown"}</dd>
+              </div>
+              <div>
+                <dt className="text-muted">Genre</dt>
+                <dd>{activeComic.genre || "Unknown"}</dd>
+              </div>
+              <div>
+                <dt className="text-muted">Tags</dt>
+                <dd className="break-all">{activeComic.tags || "Unknown"}</dd>
+              </div>
+              <div>
+                <dt className="text-muted">Web</dt>
+                <dd className="break-all">{activeComic.web || "Unknown"}</dd>
+              </div>
+              <div>
+                <dt className="text-muted">Library root</dt>
+                <dd>{activeComic.root || "Unknown"}</dd>
+              </div>
+              <div>
+                <dt className="text-muted">Parent folder</dt>
+                <dd>{activeComic.parent_folder || "Unknown"}</dd>
+              </div>
+              <div>
+                <dt className="text-muted">Size</dt>
+                <dd>{formattedSize}</dd>
+              </div>
+              <div>
+                <dt className="text-muted">Modified</dt>
+                <dd>{formattedModified}</dd>
+              </div>
+            </dl>
+          </aside>
         )}
       </div>
-
-      {/* Footer */}
       {pages.length > 1 && (
         <div className="flex shrink-0 items-center justify-center border-t border-surface bg-surface-90 py-2">
           <span className="rounded-full bg-accent px-3 py-1 text-xs font-semibold text-primary">

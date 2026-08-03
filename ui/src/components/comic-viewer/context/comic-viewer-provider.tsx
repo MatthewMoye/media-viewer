@@ -33,6 +33,20 @@ function toComicBook(api: ApiComicBook): ComicBook {
     issue: parts.length > 0 ? parts.join("-") : "",
     cover: `/comic-thumbnail/${api.id}`,
     description: api.tags || api.genre || "",
+    filename: api.filename,
+    year: api.year,
+    month: api.month,
+    day: api.day,
+    genre: api.genre,
+    tags: api.tags,
+    web: api.web,
+    series: api.series,
+    format: api.format,
+    page_count: api.page_count,
+    root: api.root || "",
+    parent_folder: api.parent_folder || "",
+    size: typeof api.size === "number" ? api.size : null,
+    modified: typeof api.modified === "number" ? api.modified : null,
   };
 }
 

@@ -98,7 +98,6 @@ const statements = {
       id,
       root,
       parent_folder,
-      full_path,
       filename,
       extension,
       type,
@@ -127,7 +126,6 @@ const statements = {
       id,
       root,
       parent_folder,
-      full_path,
       filename,
       extension,
       type,
@@ -177,7 +175,7 @@ const statements = {
   `),
 
   listComics: database.prepare(`
-    SELECT id, root, parent_folder, full_path, filename, size, modified,
+    SELECT id, root, parent_folder, filename, size, modified,
            thumbnail_generated, cover_entry, title, year, month, day,
            writer, genre, tags, web,
            series, format, page_count
