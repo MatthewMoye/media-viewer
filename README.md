@@ -109,7 +109,7 @@ npm run host
 ## View the App On Other Devices
 
 1. On another device, open a browser.
-2. Go to https://<your-local-ip>:5173.
+2. Go to `https://<your-local-ip>:5173`
 3. Log in with AUTH_USER and AUTH_PASS from api/.env.
 
 If you see a certificate warning, trust your mkcert certificate authority on that device.
