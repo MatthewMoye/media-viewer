@@ -1,7 +1,7 @@
 import { useMediaViewer } from "./context/use-media-viewer";
 
 const MediaFiles = () => {
-  const { visibleFiles, selectedItemId, openModal } = useMediaViewer();
+  const { visibleFiles, openModal } = useMediaViewer();
 
   return (
     <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -9,11 +9,7 @@ const MediaFiles = () => {
         <div
           key={item.id}
           onClick={() => openModal(item)}
-          className={`group cursor-pointer overflow-hidden rounded-xl border-2 transition ${
-            selectedItemId === item.id
-              ? "border-accent bg-surface-strong"
-              : "border-surface bg-surface-90 hover:bg-surface-strong"
-          }`}
+          className="group cursor-pointer overflow-hidden rounded-xl border-2 transition border-surface bg-surface-90 hover:bg-surface-strong"
         >
           <div className="relative h-80 overflow-hidden border-b-2 border-surface bg-black">
             <img

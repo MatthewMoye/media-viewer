@@ -21,7 +21,6 @@ export type MediaViewerContextValue = {
   startIndex: number;
   pageSize: number;
 
-  selectedItemId: string;
   modalOpen: boolean;
   modalItem: MediaItem | null;
   modalRef: RefObject<HTMLDivElement | null>;

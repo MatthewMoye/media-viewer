@@ -44,7 +44,6 @@ export const MediaViewerProvider = ({ children }: PropsWithChildren) => {
 
   const pageChangeTimeoutRef = useRef<number | null>(null);
 
-  const [selectedItemId, setSelectedItemId] = useState("");
   const [modalOpen, setModalOpen] = useState(false);
   const [modalItem, setModalItem] = useState<MediaItem | null>(null);
 
@@ -259,7 +258,6 @@ export const MediaViewerProvider = ({ children }: PropsWithChildren) => {
   );
 
   const openModal = useCallback((item: MediaItem) => {
-    setSelectedItemId(item.id);
     setModalItem(item);
     setModalOpen(true);
   }, []);
@@ -304,7 +302,6 @@ export const MediaViewerProvider = ({ children }: PropsWithChildren) => {
       startIndex,
       pageSize: PAGE_SIZE,
 
-      selectedItemId,
       modalOpen,
       modalItem,
       modalRef,
@@ -336,7 +333,6 @@ export const MediaViewerProvider = ({ children }: PropsWithChildren) => {
       currentPage,
       totalPages,
       startIndex,
-      selectedItemId,
       modalOpen,
       modalItem,
       setSearchTerm,
