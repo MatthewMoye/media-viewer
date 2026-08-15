@@ -1,4 +1,5 @@
 import { database } from "../db.js";
+import { initializeSchema } from "../schema.js";
 import {
   normalizePage,
   normalizePageSize,
@@ -7,6 +8,8 @@ import {
   buildPaginationResult,
 } from "../query/pagination.js";
 import { buildMediaFilters } from "../query/media-filters.js";
+
+initializeSchema();
 
 type ListMediaFilesOptions = {
   page?: unknown;

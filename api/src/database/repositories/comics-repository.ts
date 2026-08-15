@@ -1,4 +1,5 @@
 import { database } from "../db.js";
+import { initializeSchema } from "../schema.js";
 import {
   normalizePage,
   normalizePageSize,
@@ -7,6 +8,8 @@ import {
   buildPaginationResult,
 } from "../query/pagination.js";
 import { buildComicFilters } from "../query/comic-filters.js";
+
+initializeSchema();
 
 type ListComicsOptions = {
   page?: unknown;
