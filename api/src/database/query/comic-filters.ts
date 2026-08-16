@@ -10,8 +10,11 @@ function buildComicFilters(options: ComicFilterOptions = {}) {
 
   const search = typeof options.search === "string" ? options.search.trim() : "";
   if (search) {
-    conditions.push("COALESCE(title, filename) LIKE ?");
-    params.push(`%${search}%`);
+    const searchTerms = search.split(/\s+/);
+    for (const searchTerm of searchTerms) {
+      conditions.push("COALESCE(title, filename) LIKE ?");
+      params.push(`%${searchTerm}%`);
+    }
   }
 
   if (typeof options.author === "string" && options.author.trim() !== "") {

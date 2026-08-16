@@ -11,8 +11,11 @@ function buildMediaFilters(options: MediaFilterOptions = {}) {
 
   const search = typeof options.search === "string" ? options.search.trim() : "";
   if (search) {
-    conditions.push("filename LIKE ?");
-    params.push(`%${search}%`);
+    const searchTerms = search.split(/\s+/);
+    for (const searchTerm of searchTerms) {
+      conditions.push("filename LIKE ?");
+      params.push(`%${searchTerm}%`);
+    }
   }
 
   if (options.type === "image" || options.type === "video") {
