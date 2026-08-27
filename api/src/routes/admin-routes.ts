@@ -10,6 +10,7 @@ import {
 import { getLibraryRescanStatus } from "../services/library-scanner.js";
 import { renderAdminPage } from "../views/admin-page.js";
 import { handleRescan, runRootMutation } from "./helpers/admin-root-actions.js";
+import { getDirectoryListing } from "./helpers/directory-browser.js";
 
 const adminRouter = express.Router();
 
@@ -33,6 +34,15 @@ adminRouter.post("/rescan", handleRescan);
 
 adminRouter.get("/api/admin/rescan/status", (request, response) => {
   response.json(getLibraryRescanStatus());
+});
+
+adminRouter.get("/api/admin/browse-dirs", async (request, response) => {
+  try {
+    const requestedPath = typeof request.query.path === "string" ? request.query.path : "";
+    response.json(await getDirectoryListing(requestedPath));
+  } catch (error) {
+    response.status(400).json({ error: error.message });
+  }
 });
 
 adminRouter.post("/roots/media/add", (request, response) => {

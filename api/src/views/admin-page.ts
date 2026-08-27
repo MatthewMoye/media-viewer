@@ -123,6 +123,75 @@ function renderAdminPage({ mediaRoots, comicRoots, message, messageType }) {
             background: #3a79eb;
           }
 
+          button.secondary {
+            background: #364250;
+          }
+
+          button.secondary:hover {
+            background: #445064;
+          }
+
+          .modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.6);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 24px;
+            z-index: 10;
+          }
+
+          .modal-overlay.hidden {
+            display: none;
+          }
+
+          .modal {
+            width: min(560px, 100%);
+            max-height: 80vh;
+            background: #1a2027;
+            border: 1px solid #2a323b;
+            border-radius: 12px;
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+          }
+
+          .modal-header {
+            font-size: 0.85rem;
+            color: #b6c2d0;
+            word-break: break-all;
+          }
+
+          .dir-list {
+            list-style: none;
+            margin: 0;
+            padding: 0;
+            overflow-y: auto;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+          }
+
+          .dir-entry {
+            padding: 8px 10px;
+            border-radius: 6px;
+            background: #10151c;
+            cursor: pointer;
+          }
+
+          .dir-entry:hover {
+            background: #232b35;
+          }
+
+          .modal-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+          }
+
           ul {
             list-style: none;
             margin: 0;
@@ -195,8 +264,9 @@ function renderAdminPage({ mediaRoots, comicRoots, message, messageType }) {
           </label>
           <label>
             Path
-            <input type="text" name="path" required />
+            <input type="text" name="path" id="media-path" required />
           </label>
+          <button type="button" class="secondary browse-btn" data-target="media-path">Browse&hellip;</button>
           <button type="submit">Add media directory</button>
         </form>
         <ul>
@@ -211,14 +281,102 @@ function renderAdminPage({ mediaRoots, comicRoots, message, messageType }) {
           </label>
           <label>
             Path
-            <input type="text" name="path" required />
+            <input type="text" name="path" id="comic-path" required />
           </label>
+          <button type="button" class="secondary browse-btn" data-target="comic-path">Browse&hellip;</button>
           <button type="submit">Add comic directory</button>
         </form>
         <ul>
           ${renderRootItems(comicRoots, "comics")}
         </ul>
         </main>
+
+        <div id="dir-browser-modal" class="modal-overlay hidden">
+          <div class="modal">
+            <div class="modal-header" id="dir-browser-current-path"></div>
+            <ul class="dir-list" id="dir-browser-list"></ul>
+            <div class="modal-actions">
+              <button type="button" class="secondary" id="dir-browser-cancel">Cancel</button>
+              <button type="button" id="dir-browser-select">Select this folder</button>
+            </div>
+          </div>
+        </div>
+
+        <script>
+          (function () {
+            var modal = document.getElementById("dir-browser-modal");
+            var listEl = document.getElementById("dir-browser-list");
+            var currentPathEl = document.getElementById("dir-browser-current-path");
+            var selectBtn = document.getElementById("dir-browser-select");
+            var cancelBtn = document.getElementById("dir-browser-cancel");
+            var activeInput = null;
+            var currentPath = "";
+
+            function loadDirectory(targetPath) {
+              var url = "/api/admin/browse-dirs?path=" + encodeURIComponent(targetPath || "");
+
+              fetch(url)
+                .then(function (res) {
+                  if (!res.ok) {
+                    return res.json().then(function (body) {
+                      throw new Error(body.error || "Failed to load directory");
+                    });
+                  }
+                  return res.json();
+                })
+                .then(function (data) {
+                  currentPath = data.currentPath;
+                  currentPathEl.textContent = data.currentPath || "Select a drive";
+                  listEl.innerHTML = "";
+
+                  if (data.parentPath !== null && data.parentPath !== undefined) {
+                    var upItem = document.createElement("li");
+                    upItem.textContent = "..";
+                    upItem.className = "dir-entry";
+                    upItem.addEventListener("click", function () {
+                      loadDirectory(data.parentPath);
+                    });
+                    listEl.appendChild(upItem);
+                  }
+
+                  data.directories.forEach(function (dir) {
+                    var item = document.createElement("li");
+                    item.textContent = dir.name;
+                    item.className = "dir-entry";
+                    item.addEventListener("click", function () {
+                      loadDirectory(dir.path);
+                    });
+                    listEl.appendChild(item);
+                  });
+                })
+                .catch(function (error) {
+                  listEl.innerHTML = "";
+                  var errorItem = document.createElement("li");
+                  errorItem.textContent = error.message;
+                  listEl.appendChild(errorItem);
+                });
+            }
+
+            document.querySelectorAll(".browse-btn").forEach(function (button) {
+              button.addEventListener("click", function () {
+                activeInput = document.getElementById(button.dataset.target);
+                modal.classList.remove("hidden");
+                loadDirectory(activeInput.value || "");
+              });
+            });
+
+            selectBtn.addEventListener("click", function () {
+              if (activeInput) {
+                activeInput.value = currentPath;
+              }
+              modal.classList.add("hidden");
+            });
+
+            cancelBtn.addEventListener("click", function () {
+              modal.classList.add("hidden");
+            });
+          })();
+        </script>
       </body>
     </html>
   `;
