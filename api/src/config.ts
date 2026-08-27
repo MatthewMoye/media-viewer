@@ -4,17 +4,18 @@ import { loadEnvFile } from "node:process";
 import { fileURLToPath } from "node:url";
 
 const PROJECT_ROOT = path.resolve(fileURLToPath(new URL("..", import.meta.url)));
-const ENV_PATH = path.join(PROJECT_ROOT, ".env");
+const REPO_ROOT = path.resolve(PROJECT_ROOT, "..");
+const ENV_PATH = path.join(REPO_ROOT, ".env");
 
 if (fs.existsSync(ENV_PATH)) {
   loadEnvFile(ENV_PATH);
 }
 
-function parsePort(value) {
+function parsePort(value, settingName) {
   const port = Number.parseInt(value ?? "3000", 10);
 
   if (!Number.isInteger(port) || port <= 0 || port > 65535) {
-    throw new Error(`Invalid PORT value: ${value}`);
+    throw new Error(`Invalid ${settingName} value: ${value}`);
   }
 
   return port;
@@ -118,7 +119,7 @@ function parseAuthCredentials() {
 
 const config = {
   projectRoot: PROJECT_ROOT,
-  port: parsePort(process.env.PORT),
+  port: parsePort(process.env.API_PORT, "API_PORT"),
   host: process.env.HOST?.trim() || "localhost",
   thumbnailWorkerCount: parsePositiveInteger(
     process.env.THUMBNAIL_WORKER_COUNT,

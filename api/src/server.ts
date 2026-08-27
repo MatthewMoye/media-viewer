@@ -11,13 +11,13 @@ function startServer() {
 
     const app = createApp();
 
-    const certPath = fileURLToPath(new URL("../certs/cert.pem", import.meta.url));
-    const keyPath = fileURLToPath(new URL("../certs/key.pem", import.meta.url));
+    const certPath = fileURLToPath(new URL("../../certs/cert.pem", import.meta.url));
+    const keyPath = fileURLToPath(new URL("../../certs/key.pem", import.meta.url));
     const hasCerts = fs.existsSync(certPath) && fs.existsSync(keyPath);
 
     if (!hasCerts) {
       throw new Error(
-        "HTTPS certificates are required. Expected api/certs/cert.pem and api/certs/key.pem.",
+        "HTTPS certificates are required. Expected certs/cert.pem and certs/key.pem in the project root.",
       );
     }
 

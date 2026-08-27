@@ -30,8 +30,8 @@ npm run install:all
 
 The API requires these files:
 
-- api/certs/cert.pem
-- api/certs/key.pem
+- certs/cert.pem
+- certs/key.pem
 
 Use mkcert to generate them for localhost and your local IP.
 
@@ -41,9 +41,9 @@ Windows:
 winget install FiloSottile.mkcert
 mkcert -install
 mkcert localhost 127.0.0.1 <your-local-ip>
-mkdir api\certs -Force
-move localhost+2.pem api\certs\cert.pem -Force
-move localhost+2-key.pem api\certs\key.pem -Force
+mkdir certs -Force
+move localhost+2.pem certs\cert.pem -Force
+move localhost+2-key.pem certs\key.pem -Force
 ```
 
 macOS/Linux:
@@ -52,32 +52,38 @@ macOS/Linux:
 brew install mkcert
 mkcert -install
 mkcert localhost 127.0.0.1 <your-local-ip>
-mkdir -p api/certs
-mv localhost+2.pem api/certs/cert.pem
-mv localhost+2-key.pem api/certs/key.pem
+mkdir -p certs
+mv localhost+2.pem certs/cert.pem
+mv localhost+2-key.pem certs/key.pem
 ```
 
-### 3. Configure api/.env
+### 3. Configure .env
+
+Create a .env file in the project root that is a copy of [.env.example](.env.example) and fill in your values:
 
 ```env
-PORT=3000
+API_PORT=3000
+UI_PORT=5173
 HOST=localhost
 
 DATABASE_PATH=library.db
 CACHE_PATH=cache
+# Number of concurrent backend workers for media+CBZ thumbnail generation queue
 THUMBNAIL_WORKER_COUNT=2
 
-MEDIA_ROOTS=[{"name":"My Media","path":"C:\\Path\\To\\Media"}]
-CBZ_ROOTS=[{"name":"My Comics","path":"C:\\Path\\To\\Comics"}]
+MEDIA_ROOTS=[{"name":"Media","path":"C:\\Path\\To\\Media"}]
+CBZ_ROOTS=[{"name":"Comics","path":"C:\\Path\\To\\Comics"}]
 
+# Authentication
 AUTH_USER=admin
-AUTH_PASS=your-password
-AUTH_SECRET=change-this-to-a-random-secret
+AUTH_PASS=your-secure-password-here
+# Can generate a new secret with: node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+AUTH_SECRET=your-secret-key-change-this-in-production
 ```
 
 Notes:
 
-- Use HOST=0.0.0.0 if you want other devices to connect directly to the API host.
+- `HOST` is shared by both the API and UI dev servers. Use `HOST=0.0.0.0` if you want other devices to connect directly instead of through the UI proxy.
 - Directory changes made in the admin page are saved in cache/roots.json.
 - THUMBNAIL_WORKER_COUNT controls concurrent backend thumbnail workers for both media and CBZ thumbnails (higher is faster warmup, but uses more CPU/disk). A value of 2-4 is usually a good range.
 
@@ -100,14 +106,14 @@ These `api`/`ui` scripts forward to any script defined in that project's package
 
 ## Where to Use This
 
-- Host computer: use this README for setup and commands, and use the Admin page there to manage directories and run rescans at https://localhost:3000/.
+- Host computer: use this README for setup and commands, and use the Admin page there to manage directories and run rescans at https://localhost:3000/ (or your configured `API_PORT`).
 - Any device on your home network: use the Main Viewer in a browser to stream media.
 
 ## View the App On Other Devices
 
 1. On another device, open a browser.
-2. Go to `https://<your-local-ip>:5173`
-3. Log in with AUTH_USER and AUTH_PASS from api/.env.
+2. Go to `https://<your-local-ip>:5173` (or your configured `UI_PORT`)
+3. Log in with AUTH_USER and AUTH_PASS from .env.
 
 If you see a certificate warning, trust your mkcert certificate authority on that device.
 
