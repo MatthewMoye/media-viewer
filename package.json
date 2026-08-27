@@ -1,0 +1,14 @@
+{
+  "name": "media-viewer",
+  "private": true,
+  "version": "1.0.0",
+  "scripts": {
+    "api": "npm --prefix api run",
+    "ui": "npm --prefix ui run",
+    "install:all": "npm install && npm install --prefix api && npm install --prefix ui",
+    "start": "concurrently --raw \"npm --prefix api run dev\" \"npm --prefix ui run host\""
+  },
+  "devDependencies": {
+    "concurrently": "^10.0.5"
+  }
+}

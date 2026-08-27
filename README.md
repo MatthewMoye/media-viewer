@@ -20,14 +20,10 @@ Stream your media library and comic library to devices on your home network.
 
 ### 1. Install dependencies
 
-Run these from the project root:
+Run this from the project root:
 
 ```bash
-cd api
-npm install
-
-cd ../ui
-npm install
+npm run install:all
 ```
 
 ### 2. Create HTTPS certificates
@@ -87,19 +83,20 @@ Notes:
 
 ## Start The App
 
-In terminal 1, from the root of the project repo:
+From the root of the project repo, run both the API and UI together:
 
 ```bash
-cd api
-npm run dev
+npm run start
 ```
 
-In terminal 2, from the root of the project repo:
+Or run them separately, each still from the project root:
 
 ```bash
-cd ui
-npm run host
+npm run api dev
+npm run ui host
 ```
+
+These `api`/`ui` scripts forward to any script defined in that project's package.json, e.g. `npm run api build` or `npm run ui lint`.
 
 ## Where to Use This
 
