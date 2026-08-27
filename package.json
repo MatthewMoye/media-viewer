@@ -6,6 +6,7 @@
     "api": "npm --prefix api run",
     "ui": "npm --prefix ui run",
     "install:all": "npm install && npm install --prefix api && npm install --prefix ui",
+    "dev": "concurrently --raw \"npm --prefix api run dev\" \"npm --prefix ui run dev\"",
     "start": "concurrently --raw \"npm --prefix api run dev\" \"npm --prefix ui run host\""
   },
   "devDependencies": {
