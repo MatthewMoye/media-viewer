@@ -3,6 +3,12 @@ import type { ApiMediaFile, ApiMediaFilesResponse, FullscreenElement, MediaItem 
 import { authenticatedFetch } from "@/utils/authenticated-fetch";
 import { createRandomSeed } from "@/utils/random";
 import { usePagedResourceCache } from "@/utils/use-paged-resource-cache";
+import {
+  readUrlNumberParam,
+  readUrlPageParam,
+  readUrlSearchParam,
+  writeUrlSearchParams,
+} from "@/utils/url-search-params";
 import { MediaViewerContext, type MediaViewMode } from "./media-viewer-context";
 
 const PAGE_SIZE = 30;
@@ -30,15 +36,23 @@ export const MediaViewerProvider = ({ children }: PropsWithChildren) => {
   const [files, setFiles] = useState<MediaItem[]>([]);
   const [folders, setFolders] = useState<string[]>([]);
 
-  const [searchTerm, setSearchTermState] = useState("");
-  const [viewMode, setViewModeState] = useState<MediaViewMode>("all");
-  const [includedParentFolder, setIncludedParentFolderState] = useState(ALL_FOLDERS);
-  const [excludedParentFolders, setExcludedParentFolders] = useState<string[]>([]);
+  const [searchTerm, setSearchTermState] = useState(() => readUrlSearchParam("media.search") ?? "");
+  const [viewMode, setViewModeState] = useState<MediaViewMode>(() => {
+    const type = readUrlSearchParam("media.type");
+    return type === "image" || type === "video" ? type : "all";
+  });
+  const [includedParentFolder, setIncludedParentFolderState] = useState(
+    () => readUrlSearchParam("media.include") ?? ALL_FOLDERS,
+  );
+  const [excludedParentFolders, setExcludedParentFolders] = useState<string[]>(() => {
+    const excluded = readUrlSearchParam("media.exclude");
+    return excluded ? excluded.split(",").filter(Boolean) : [];
+  });
 
-  const [randomized, setRandomized] = useState(false);
-  const [randomSeed, setRandomSeed] = useState<number | null>(null);
+  const [randomSeed, setRandomSeed] = useState<number | null>(() => readUrlNumberParam("media.seed"));
+  const [randomized, setRandomized] = useState(() => readUrlNumberParam("media.seed") !== null);
 
-  const [currentPage, setCurrentPage] = useState(1);
+  const [currentPage, setCurrentPage] = useState(() => readUrlPageParam("media.page"));
   const [totalPages, setTotalPages] = useState(1);
   const [filteredFileCount, setFilteredFileCount] = useState(0);
 
@@ -48,6 +62,25 @@ export const MediaViewerProvider = ({ children }: PropsWithChildren) => {
   const [modalItem, setModalItem] = useState<MediaItem | null>(null);
 
   const modalRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    writeUrlSearchParams({
+      "media.search": searchTerm.trim() === "" ? null : searchTerm.trim(),
+      "media.type": viewMode === "all" ? null : viewMode,
+      "media.include": includedParentFolder === ALL_FOLDERS ? null : includedParentFolder,
+      "media.exclude": excludedParentFolders.length > 0 ? excludedParentFolders.join(",") : null,
+      "media.seed": randomized && randomSeed !== null ? String(randomSeed) : null,
+      "media.page": currentPage > 1 ? String(currentPage) : null,
+    });
+  }, [
+    searchTerm,
+    viewMode,
+    includedParentFolder,
+    excludedParentFolders,
+    randomized,
+    randomSeed,
+    currentPage,
+  ]);
 
   const requestSignature = useMemo(() => {
     const normalizedSearch = searchTerm.trim();
@@ -97,10 +130,13 @@ export const MediaViewerProvider = ({ children }: PropsWithChildren) => {
   );
 
   const applyResponse = useCallback((data: ApiMediaFilesResponse) => {
+    const pages = Math.max(1, data.totalPages);
+
     setFiles(data.items.map(toMediaItem));
     setFolders(data.folders);
     setFilteredFileCount(data.totalCount);
-    setTotalPages(Math.max(1, data.totalPages));
+    setTotalPages(pages);
+    setCurrentPage((page) => Math.min(page, pages));
   }, []);
 
   const fetchPage = useCallback(

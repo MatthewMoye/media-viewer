@@ -1,8 +1,14 @@
-import { useCallback, useMemo, useState, type PropsWithChildren } from "react";
+import { useCallback, useEffect, useMemo, useState, type PropsWithChildren } from "react";
 import type { ApiComicBook, ApiComicsResponse, ComicBook } from "@/types";
 import { authenticatedFetch } from "@/utils/authenticated-fetch";
 import { createRandomSeed } from "@/utils/random";
 import { usePagedResourceCache } from "@/utils/use-paged-resource-cache";
+import {
+  readUrlNumberParam,
+  readUrlPageParam,
+  readUrlSearchParam,
+  writeUrlSearchParams,
+} from "@/utils/url-search-params";
 import { ComicViewerContext } from "./comic-viewer-context";
 
 const PAGE_SIZE = 30;
@@ -38,23 +44,37 @@ function toComicBook(api: ApiComicBook): ComicBook {
 export const ComicViewerProvider = ({ children }: PropsWithChildren) => {
   const [comicBooks, setComicBooks] = useState<ComicBook[]>([]);
 
-  const [searchTerm, setSearchTermState] = useState("");
-  const [selectedAuthor, setSelectedAuthorState] = useState<string | null>(null);
-  const [selectedTag, setSelectedTagState] = useState<string | null>(null);
+  const [searchTerm, setSearchTermState] = useState(() => readUrlSearchParam("comics.search") ?? "");
+  const [selectedAuthor, setSelectedAuthorState] = useState<string | null>(() =>
+    readUrlSearchParam("comics.author"),
+  );
+  const [selectedTag, setSelectedTagState] = useState<string | null>(() =>
+    readUrlSearchParam("comics.tag"),
+  );
   const [authorSearch, setAuthorSearch] = useState("");
   const [tagSearch, setTagSearch] = useState("");
   const [filtersExpanded, setFiltersExpanded] = useState(false);
-  const [randomized, setRandomized] = useState(false);
-  const [randomSeed, setRandomSeed] = useState<number | null>(null);
+  const [randomSeed, setRandomSeed] = useState<number | null>(() => readUrlNumberParam("comics.seed"));
+  const [randomized, setRandomized] = useState(() => readUrlNumberParam("comics.seed") !== null);
 
   const [allAuthors, setAllAuthors] = useState<[string, number][]>([]);
   const [allTags, setAllTags] = useState<[string, number][]>([]);
 
-  const [currentPage, setCurrentPageState] = useState(1);
+  const [currentPage, setCurrentPageState] = useState(() => readUrlPageParam("comics.page"));
   const [totalPages, setTotalPages] = useState(1);
   const [filteredCount, setFilteredCount] = useState(0);
 
   const [activeComic, setActiveComic] = useState<ComicBook | null>(null);
+
+  useEffect(() => {
+    writeUrlSearchParams({
+      "comics.search": searchTerm.trim() === "" ? null : searchTerm.trim(),
+      "comics.author": selectedAuthor,
+      "comics.tag": selectedTag,
+      "comics.seed": randomized && randomSeed !== null ? String(randomSeed) : null,
+      "comics.page": currentPage > 1 ? String(currentPage) : null,
+    });
+  }, [searchTerm, selectedAuthor, selectedTag, randomized, randomSeed, currentPage]);
 
   const requestSignature = useMemo(() => {
     return JSON.stringify({
@@ -96,11 +116,14 @@ export const ComicViewerProvider = ({ children }: PropsWithChildren) => {
   );
 
   const applyResponse = useCallback((data: ApiComicsResponse) => {
+    const pages = Math.max(1, data.totalPages);
+
     setComicBooks(data.items.map(toComicBook));
     setAllAuthors(data.authors);
     setAllTags(data.tags);
     setFilteredCount(data.totalCount);
-    setTotalPages(Math.max(1, data.totalPages));
+    setTotalPages(pages);
+    setCurrentPageState((page) => Math.min(page, pages));
   }, []);
 
   const fetchPage = useCallback(
