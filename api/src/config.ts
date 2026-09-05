@@ -32,9 +32,7 @@ function parsePositiveInteger(value, fallback, settingName) {
 }
 
 function parseMediaRoots(value) {
-  if (!value) {
-    throw new Error("MEDIA_ROOTS is required in the .env file.");
-  }
+  if (!value) return [];
 
   let roots;
 
@@ -44,8 +42,8 @@ function parseMediaRoots(value) {
     throw new Error(`MEDIA_ROOTS must be valid JSON. ${error.message}`);
   }
 
-  if (!Array.isArray(roots) || roots.length === 0) {
-    throw new Error("MEDIA_ROOTS must contain at least one root.");
+  if (!Array.isArray(roots)) {
+    throw new Error("MEDIA_ROOTS must be a JSON array.");
   }
 
   return roots.map((root, index) => {
