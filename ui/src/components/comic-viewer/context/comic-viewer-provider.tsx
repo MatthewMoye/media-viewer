@@ -2,13 +2,8 @@ import { useCallback, useEffect, useMemo, useState, type PropsWithChildren } fro
 import type { ApiComicBook, ApiComicsResponse, ComicBook } from "@/types";
 import { authenticatedFetch } from "@/utils/authenticated-fetch";
 import { createRandomSeed } from "@/utils/random";
+import { loadSessionState, saveSessionState } from "@/utils/session-state";
 import { usePagedResourceCache } from "@/utils/use-paged-resource-cache";
-import {
-  readUrlNumberParam,
-  readUrlPageParam,
-  readUrlSearchParam,
-  writeUrlSearchParams,
-} from "@/utils/url-search-params";
 import { ComicViewerContext } from "./comic-viewer-context";
 
 const PAGE_SIZE = 30;
@@ -41,38 +36,50 @@ function toComicBook(api: ApiComicBook): ComicBook {
   };
 }
 
+type ComicSessionState = {
+  searchTerm: string;
+  selectedAuthor: string | null;
+  selectedTag: string | null;
+  randomSeed: number | null;
+  currentPage: number;
+};
+
 export const ComicViewerProvider = ({ children }: PropsWithChildren) => {
   const [comicBooks, setComicBooks] = useState<ComicBook[]>([]);
 
-  const [searchTerm, setSearchTermState] = useState(() => readUrlSearchParam("comics.search") ?? "");
-  const [selectedAuthor, setSelectedAuthorState] = useState<string | null>(() =>
-    readUrlSearchParam("comics.author"),
+  const [initialSession] = useState(() => loadSessionState<ComicSessionState>("comics"));
+
+  const [searchTerm, setSearchTermState] = useState(initialSession?.searchTerm ?? "");
+  const [selectedAuthor, setSelectedAuthorState] = useState<string | null>(
+    initialSession?.selectedAuthor ?? null,
   );
-  const [selectedTag, setSelectedTagState] = useState<string | null>(() =>
-    readUrlSearchParam("comics.tag"),
+  const [selectedTag, setSelectedTagState] = useState<string | null>(
+    initialSession?.selectedTag ?? null,
   );
   const [authorSearch, setAuthorSearch] = useState("");
   const [tagSearch, setTagSearch] = useState("");
   const [filtersExpanded, setFiltersExpanded] = useState(false);
-  const [randomSeed, setRandomSeed] = useState<number | null>(() => readUrlNumberParam("comics.seed"));
-  const [randomized, setRandomized] = useState(() => readUrlNumberParam("comics.seed") !== null);
+  const [randomSeed, setRandomSeed] = useState<number | null>(initialSession?.randomSeed ?? null);
+  const [randomized, setRandomized] = useState(() => (initialSession?.randomSeed ?? null) !== null);
 
   const [allAuthors, setAllAuthors] = useState<[string, number][]>([]);
   const [allTags, setAllTags] = useState<[string, number][]>([]);
 
-  const [currentPage, setCurrentPageState] = useState(() => readUrlPageParam("comics.page"));
+  const [currentPage, setCurrentPageState] = useState(() =>
+    Math.max(1, Math.floor(initialSession?.currentPage ?? 1)),
+  );
   const [totalPages, setTotalPages] = useState(1);
   const [filteredCount, setFilteredCount] = useState(0);
 
   const [activeComic, setActiveComic] = useState<ComicBook | null>(null);
 
   useEffect(() => {
-    writeUrlSearchParams({
-      "comics.search": searchTerm.trim() === "" ? null : searchTerm.trim(),
-      "comics.author": selectedAuthor,
-      "comics.tag": selectedTag,
-      "comics.seed": randomized && randomSeed !== null ? String(randomSeed) : null,
-      "comics.page": currentPage > 1 ? String(currentPage) : null,
+    saveSessionState<ComicSessionState>("comics", {
+      searchTerm,
+      selectedAuthor,
+      selectedTag,
+      randomSeed: randomized ? randomSeed : null,
+      currentPage,
     });
   }, [searchTerm, selectedAuthor, selectedTag, randomized, randomSeed, currentPage]);
 

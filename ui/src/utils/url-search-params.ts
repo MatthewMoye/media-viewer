@@ -5,22 +5,6 @@ export const readUrlSearchParam = (key: string): string | null => {
   return value !== null && value.trim() !== "" ? value : null;
 };
 
-export const readUrlNumberParam = (key: string): number | null => {
-  const raw = readUrlSearchParam(key);
-
-  if (raw === null) {
-    return null;
-  }
-
-  const value = Number(raw);
-  return Number.isFinite(value) ? value : null;
-};
-
-export const readUrlPageParam = (key: string): number => {
-  const page = readUrlNumberParam(key);
-  return page === null ? 1 : Math.max(1, Math.floor(page));
-};
-
 export const writeUrlSearchParams = (updates: Record<string, string | null>): void => {
   const url = new URL(window.location.href);
   let changed = false;

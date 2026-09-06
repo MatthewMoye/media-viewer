@@ -2,13 +2,8 @@ import { useCallback, useEffect, useMemo, useRef, useState, type PropsWithChildr
 import type { ApiMediaFile, ApiMediaFilesResponse, FullscreenElement, MediaItem } from "@/types";
 import { authenticatedFetch } from "@/utils/authenticated-fetch";
 import { createRandomSeed } from "@/utils/random";
+import { loadSessionState, saveSessionState } from "@/utils/session-state";
 import { usePagedResourceCache } from "@/utils/use-paged-resource-cache";
-import {
-  readUrlNumberParam,
-  readUrlPageParam,
-  readUrlSearchParam,
-  writeUrlSearchParams,
-} from "@/utils/url-search-params";
 import { MediaViewerContext, type MediaViewMode } from "./media-viewer-context";
 
 const PAGE_SIZE = 30;
@@ -32,27 +27,43 @@ function toMediaItem(file: ApiMediaFile): MediaItem {
   };
 }
 
+type MediaSessionState = {
+  searchTerm: string;
+  viewMode: MediaViewMode;
+  includedParentFolder: string;
+  excludedParentFolders: string[];
+  randomSeed: number | null;
+  currentPage: number;
+};
+
 export const MediaViewerProvider = ({ children }: PropsWithChildren) => {
   const [files, setFiles] = useState<MediaItem[]>([]);
   const [folders, setFolders] = useState<string[]>([]);
 
-  const [searchTerm, setSearchTermState] = useState(() => readUrlSearchParam("media.search") ?? "");
+  const [initialSession] = useState(() => loadSessionState<MediaSessionState>("media"));
+
+  const [searchTerm, setSearchTermState] = useState(initialSession?.searchTerm ?? "");
   const [viewMode, setViewModeState] = useState<MediaViewMode>(() => {
-    const type = readUrlSearchParam("media.type");
-    return type === "image" || type === "video" ? type : "all";
+    const mode = initialSession?.viewMode;
+    return mode === "image" || mode === "video" ? mode : "all";
   });
   const [includedParentFolder, setIncludedParentFolderState] = useState(
-    () => readUrlSearchParam("media.include") ?? ALL_FOLDERS,
+    initialSession?.includedParentFolder ?? ALL_FOLDERS,
   );
-  const [excludedParentFolders, setExcludedParentFolders] = useState<string[]>(() => {
-    const excluded = readUrlSearchParam("media.exclude");
-    return excluded ? excluded.split(",").filter(Boolean) : [];
-  });
+  const [excludedParentFolders, setExcludedParentFolders] = useState<string[]>(() =>
+    Array.isArray(initialSession?.excludedParentFolders)
+      ? initialSession.excludedParentFolders.filter(
+          (folder): folder is string => typeof folder === "string",
+        )
+      : [],
+  );
 
-  const [randomSeed, setRandomSeed] = useState<number | null>(() => readUrlNumberParam("media.seed"));
-  const [randomized, setRandomized] = useState(() => readUrlNumberParam("media.seed") !== null);
+  const [randomSeed, setRandomSeed] = useState<number | null>(initialSession?.randomSeed ?? null);
+  const [randomized, setRandomized] = useState(() => (initialSession?.randomSeed ?? null) !== null);
 
-  const [currentPage, setCurrentPage] = useState(() => readUrlPageParam("media.page"));
+  const [currentPage, setCurrentPage] = useState(() =>
+    Math.max(1, Math.floor(initialSession?.currentPage ?? 1)),
+  );
   const [totalPages, setTotalPages] = useState(1);
   const [filteredFileCount, setFilteredFileCount] = useState(0);
 
@@ -64,13 +75,13 @@ export const MediaViewerProvider = ({ children }: PropsWithChildren) => {
   const modalRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
-    writeUrlSearchParams({
-      "media.search": searchTerm.trim() === "" ? null : searchTerm.trim(),
-      "media.type": viewMode === "all" ? null : viewMode,
-      "media.include": includedParentFolder === ALL_FOLDERS ? null : includedParentFolder,
-      "media.exclude": excludedParentFolders.length > 0 ? excludedParentFolders.join(",") : null,
-      "media.seed": randomized && randomSeed !== null ? String(randomSeed) : null,
-      "media.page": currentPage > 1 ? String(currentPage) : null,
+    saveSessionState<MediaSessionState>("media", {
+      searchTerm,
+      viewMode,
+      includedParentFolder,
+      excludedParentFolders,
+      randomSeed: randomized ? randomSeed : null,
+      currentPage,
     });
   }, [
     searchTerm,

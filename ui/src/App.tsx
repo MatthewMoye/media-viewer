@@ -5,6 +5,9 @@ import { Login } from "./components/auth/login";
 import { useAuth } from "./components/auth/use-auth";
 import { Header } from "./components/common/header";
 import { readUrlSearchParam, writeUrlSearchParams } from "./utils/url-search-params";
+import { startSessionHeartbeat } from "./utils/session-state";
+
+startSessionHeartbeat();
 
 function App() {
   const { isAuthenticated, isInitializing } = useAuth();
