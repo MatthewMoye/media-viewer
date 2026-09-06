@@ -1,7 +1,7 @@
 const STORAGE_PREFIX = "mv-state:";
 const HEARTBEAT_KEY = `${STORAGE_PREFIX}heartbeat`;
-const HEARTBEAT_INTERVAL_MS = 3 * 60 * 1000;
-export const SESSION_TTL_MS = 10 * 60 * 1000;
+const HEARTBEAT_INTERVAL_MS = 0.05 * 60 * 1000;
+export const SESSION_TTL_MS = 0.1 * 60 * 1000;
 
 type StoredPayload = {
   savedAt: number;
@@ -43,8 +43,19 @@ const isSessionAlive = (): boolean => {
   return heartbeat > 0 && Date.now() - heartbeat < SESSION_TTL_MS;
 };
 
+const clearExpiredSession = (): void => {
+  try {
+    localStorage.removeItem(HEARTBEAT_KEY);
+    localStorage.removeItem(`${STORAGE_PREFIX}media`);
+    localStorage.removeItem(`${STORAGE_PREFIX}comics`);
+  } catch {
+    // Ignore storage failures; the expired state will continue to be ignored.
+  }
+};
+
 export const loadSessionState = <T>(slot: string): T | null => {
   if (!isSessionAlive()) {
+    clearExpiredSession();
     return null;
   }
 

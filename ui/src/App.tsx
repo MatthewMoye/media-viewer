@@ -1,4 +1,4 @@
-﻿import { useState } from "react";
+﻿import { useEffect, useState } from "react";
 import { MediaViewer } from "./components/media-viewer/media-viewer";
 import { ComicViewer } from "./components/comic-viewer/comic-viewer";
 import { Login } from "./components/auth/login";
@@ -6,8 +6,6 @@ import { useAuth } from "./components/auth/use-auth";
 import { Header } from "./components/common/header";
 import { readUrlSearchParam, writeUrlSearchParams } from "./utils/url-search-params";
 import { startSessionHeartbeat } from "./utils/session-state";
-
-startSessionHeartbeat();
 
 function App() {
   const { isAuthenticated, isInitializing } = useAuth();
@@ -34,6 +32,10 @@ function getInitialView(): ViewType {
 
 function AppContent() {
   const [currentView, setCurrentViewState] = useState<ViewType>(getInitialView);
+
+  useEffect(() => {
+    startSessionHeartbeat();
+  }, []);
 
   const setCurrentView = (view: ViewType) => {
     setCurrentViewState(view);
