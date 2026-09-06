@@ -1,7 +1,7 @@
 const STORAGE_PREFIX = "mv-state:";
 const HEARTBEAT_KEY = `${STORAGE_PREFIX}heartbeat`;
-const HEARTBEAT_INTERVAL_MS = 0.05 * 60 * 1000;
-export const SESSION_TTL_MS = 0.1 * 60 * 1000;
+const HEARTBEAT_INTERVAL_MS = 1 * 60 * 1000;
+export const SESSION_TTL_MS = 3 * 60 * 1000;
 
 type StoredPayload = {
   savedAt: number;
