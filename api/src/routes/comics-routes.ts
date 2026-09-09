@@ -15,7 +15,7 @@ import {
   queueCbzThumbnailWarmupBatch,
   getCbzThumbnailQueueStatus,
 } from "../services/cbz-thumbnail-service.js";
-import { ensureComicCache, getComicCacheDir } from "../services/cbz-reader.js";
+import { ensureComicCache, getComicCacheDir, touchComicCache } from "../services/cbz-reader.js";
 import { buildComicTagFacets } from "../services/comics-facets.js";
 import { parseIdParam } from "./helpers/request-validators.js";
 import { requireExistingPath, sendNotFound } from "./helpers/file-response.js";
@@ -154,6 +154,22 @@ comicsRouter.get("/api/comics/:id/pages", async (request, response, next) => {
   }
 });
 
+comicsRouter.post("/api/comics/:id/heartbeat", (request, response) => {
+  const comicId = parseIdParam(request, response);
+
+  if (comicId === null) {
+    return;
+  }
+
+  const cacheDir = getComicCacheDir(comicId);
+
+  if (fs.existsSync(cacheDir)) {
+    touchComicCache(cacheDir);
+  }
+
+  response.status(204).end();
+});
+
 comicsRouter.get("/comic-page/:id/:filename", async (request, response) => {
   const comicId = parseIdParam(request, response);
 
@@ -176,6 +192,8 @@ comicsRouter.get("/comic-page/:id/:filename", async (request, response) => {
   if (!(await requireExistingPath(response, filePath, "Page not found"))) {
     return;
   }
+
+  touchComicCache(cacheDir);
 
   const ext = path.extname(filename).toLowerCase();
   const mimeType = getMimeType(ext);

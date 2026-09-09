@@ -4,9 +4,13 @@ import { fileURLToPath } from "node:url";
 import { config } from "./config.js";
 import { createApp } from "./app.js";
 import { requestLibraryRescan } from "./services/library-scanner.js";
+import { clearComicCache, pruneStaleComicCache } from "./services/cbz-reader.js";
+
+const COMIC_CACHE_PRUNE_INTERVAL_MS = 30 * 60 * 1000;
 
 function startServer() {
   try {
+    clearComicCache();
     requestLibraryRescan();
 
     const app = createApp();
@@ -28,6 +32,8 @@ function startServer() {
     server.listen(config.port, config.host, () => {
       console.log(`Secure server running at https://${config.host}:${config.port}`);
     });
+
+    setInterval(pruneStaleComicCache, COMIC_CACHE_PRUNE_INTERVAL_MS).unref();
   } catch (error) {
     console.error("Failed to start server:", error);
     process.exitCode = 1;

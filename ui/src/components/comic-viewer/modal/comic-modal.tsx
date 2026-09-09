@@ -6,6 +6,8 @@ import ComicModalHeader from "./comic-modal-header";
 import ComicPageStage from "./comic-page-stage";
 import ComicModalInfoPanel from "./comic-modal-info-panel";
 
+const HEARTBEAT_INTERVAL_MS = 15 * 60 * 1000;
+
 const ComicModal = () => {
   const { activeComic, closeComic } = useComicViewer();
 
@@ -53,6 +55,22 @@ const ComicModal = () => {
 
     return () => {
       isMounted = false;
+    };
+  }, [activeComic]);
+
+  useEffect(() => {
+    if (!activeComic) {
+      return;
+    }
+
+    const sendHeartbeat = () => {
+      void authenticatedFetch(`/api/comics/${activeComic.id}/heartbeat`, { method: "POST" });
+    };
+
+    const intervalId = window.setInterval(sendHeartbeat, HEARTBEAT_INTERVAL_MS);
+
+    return () => {
+      window.clearInterval(intervalId);
     };
   }, [activeComic]);
 

@@ -18,6 +18,38 @@ function getComicCacheDir(comicId) {
   return path.join(config.comicCachePath, String(comicId));
 }
 
+function clearComicCache() {
+  fs.rmSync(config.comicCachePath, { recursive: true, force: true });
+  fs.mkdirSync(config.comicCachePath, { recursive: true });
+}
+
+const STALE_CACHE_MS = 60 * 60 * 1000;
+
+// Cache dir mtime doubles as a "last retrieved" timestamp.
+function touchComicCache(cacheDir) {
+  const now = new Date();
+  fs.utimesSync(cacheDir, now, now);
+}
+
+function pruneStaleComicCache(maxAgeMs = STALE_CACHE_MS) {
+  if (!fs.existsSync(config.comicCachePath)) {
+    return;
+  }
+
+  const now = Date.now();
+
+  for (const entry of fs.readdirSync(config.comicCachePath, { withFileTypes: true })) {
+    if (!entry.isDirectory()) continue;
+
+    const dirPath = path.join(config.comicCachePath, entry.name);
+    const { mtimeMs } = fs.statSync(dirPath);
+
+    if (now - mtimeMs > maxAgeMs) {
+      fs.rmSync(dirPath, { recursive: true, force: true });
+    }
+  }
+}
+
 function getSortedPages(cacheDir) {
   return fs
     .readdirSync(cacheDir)
@@ -31,6 +63,7 @@ function ensureComicCache(comicId, cbzPath) {
   if (fs.existsSync(cacheDir)) {
     const pages = getSortedPages(cacheDir);
     if (pages.length > 0) {
+      touchComicCache(cacheDir);
       return pages;
     }
   }
@@ -65,4 +98,10 @@ function ensureComicCache(comicId, cbzPath) {
   return getSortedPages(cacheDir);
 }
 
-export { ensureComicCache, getComicCacheDir };
+export {
+  ensureComicCache,
+  getComicCacheDir,
+  clearComicCache,
+  pruneStaleComicCache,
+  touchComicCache,
+};
