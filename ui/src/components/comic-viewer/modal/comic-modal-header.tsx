@@ -6,9 +6,11 @@ type ComicModalHeaderProps = {
   hasPrev: boolean;
   hasNext: boolean;
   canNavigate: boolean;
+  readingMode: "paged" | "strip";
   onPrev: () => void;
   onNext: () => void;
   onToggleInfo: () => void;
+  onToggleReadingMode: () => void;
   onClose: () => void;
 };
 
@@ -18,9 +20,11 @@ const ComicModalHeader = ({
   hasPrev,
   hasNext,
   canNavigate,
+  readingMode,
   onPrev,
   onNext,
   onToggleInfo,
+  onToggleReadingMode,
   onClose,
 }: ComicModalHeaderProps) => {
   return (
@@ -47,6 +51,9 @@ const ComicModalHeader = ({
             </ModalActionButton>
           </>
         )}
+        <ModalActionButton onClick={onToggleReadingMode} className="hover:bg-accent">
+          {readingMode === "strip" ? "Paged view" : "Webtoon view"}
+        </ModalActionButton>
         <ModalActionButton onClick={onToggleInfo} className="hover:bg-accent">
           {showInfo ? "Hide info" : "Info"}
         </ModalActionButton>
